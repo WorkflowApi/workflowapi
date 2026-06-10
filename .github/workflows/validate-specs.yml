@@ -1,0 +1,16 @@
+name: validate-specs
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  validate-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Placeholder validation
+        run: echo "Run workflowapi validate examples/specs --recursive when CLI exists"

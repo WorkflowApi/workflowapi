@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workflowapi.dev/schemas/workflowapi-temporal-binding.schema.json",
+  "title": "WorkflowAPI Temporal Binding",
+  "type": "object",
+  "properties": {
+    "namespace": {
+      "type": "string"
+    },
+    "taskQueue": {
+      "type": "string"
+    },
+    "taskQueues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "workflowType": {
+      "type": "string"
+    },
+    "activityType": {
+      "type": "string"
+    },
+    "signalName": {
+      "type": "string"
+    },
+    "queryName": {
+      "type": "string"
+    },
+    "updateName": {
+      "type": "string"
+    },
+    "nexus": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "targetNamespace": {
+          "type": "string"
+        },
+        "targetTaskQueue": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "searchAttributes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

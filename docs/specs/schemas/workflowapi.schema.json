@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workflowapi.dev/schemas/workflowapi.schema.json",
+  "title": "WorkflowAPI Document",
+  "type": "object",
+  "required": [
+    "workflowApi",
+    "info"
+  ],
+  "properties": {
+    "workflowApi": {
+      "type": "string",
+      "pattern": "^0\\.1(\\.\\d+)?$"
+    },
+    "info": {
+      "type": "object",
+      "required": [
+        "title",
+        "version"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "host": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/workflow"
+      }
+    },
+    "bridges": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/bridge"
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "run": {
+          "$ref": "#/$defs/operation"
+        },
+        "signals": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/operation"
+          }
+        },
+        "queries": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/operation"
+          }
+        },
+        "updates": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/operation"
+          }
+        },
+        "steps": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/edge"
+          }
+        },
+        "dependsOn": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "deprecated": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "operation": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "input": {
+          "$ref": "#/$defs/schemaRef"
+        },
+        "output": {
+          "$ref": "#/$defs/schemaRef"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "schemaRef": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "type": "string"
+        },
+        "schemaRef": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "step": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "activity",
+            "workflow",
+            "childWorkflow",
+            "subflow",
+            "bridge",
+            "timer",
+            "event",
+            "externalSystem",
+            "decision",
+            "manual",
+            "custom"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "activityType": {
+          "type": "string"
+        },
+        "workflowRef": {
+          "type": "string"
+        },
+        "bridgeRef": {
+          "type": "string"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "condition": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "bridge": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "service": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "input": {
+          "$ref": "#/$defs/schemaRef"
+        },
+        "output": {
+          "$ref": "#/$defs/schemaRef"
+        },
+        "bindings": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

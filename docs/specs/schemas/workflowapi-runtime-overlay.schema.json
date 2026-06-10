@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://workflowapi.dev/schemas/workflowapi-runtime-overlay.schema.json",
+  "title": "WorkflowAPI Runtime Overlay Metrics",
+  "type": "object",
+  "required": [
+    "provider",
+    "timeRange"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string"
+    },
+    "workflowId": {
+      "type": "string"
+    },
+    "stepId": {
+      "type": "string"
+    },
+    "bridgeId": {
+      "type": "string"
+    },
+    "timeRange": {
+      "type": "object",
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "number",
+          "integer",
+          "string",
+          "boolean",
+          "array",
+          "object",
+          "null"
+        ]
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "properties": {
+        "calculatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ttlSeconds": {
+          "type": "integer"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
