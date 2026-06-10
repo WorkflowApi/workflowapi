@@ -147,6 +147,10 @@ workflowapi/
       workflowapi-catalog-ui/
       workflowapi-temporal-overlay/
 
+  examples/
+    risk-enrichment.workflowapi.yaml
+    document-service-generate-pdf.bridge.workflowapi.yaml
+
   samples/
     temporal-risk-service/
       Risk.Workflows/
@@ -260,6 +264,161 @@ For Temporal, runtime overlays may include:
 - recent failures
 - workflow instance state
 - links to Temporal Web
+
+### Example WorkflowAPI YAML
+
+The repository includes two starter YAML examples:
+
+- [`examples/risk-enrichment.workflowapi.yaml`](examples/risk-enrichment.workflowapi.yaml) — a workflow document with nested child workflows, reusable subflows, activities, signals, queries, updates, and bridge references.
+- [`examples/document-service-generate-pdf.bridge.workflowapi.yaml`](examples/document-service-generate-pdf.bridge.workflowapi.yaml) — a separately owned bridge contract, including a generic bridge and a Temporal Nexus binding.
+
+A shortened workflow example looks like this:
+
+```yaml
+workflowApi: 0.1.0
+info:
+  title: Risk Service Workflow API
+  version: 1.0.0
+
+host:
+  id: risk-service
+  name: Risk Service
+
+bindings:
+  temporal:
+    namespace: B2B.RiskService
+    taskQueue: risk-enrichment
+
+workflows:
+  RiskEnrichmentWorkflow:
+    displayName: Risk enrichment workflow
+    run:
+      operationId: runRiskEnrichment
+      input:
+        $ref: '#/components/schemas/RiskEnrichmentRequest'
+      output:
+        $ref: '#/components/schemas/RiskEnrichmentResult'
+    signals:
+      ManualReviewBypassed:
+        input:
+          $ref: '#/components/schemas/ManualReviewBypassedSignal'
+    queries:
+      GetStatus:
+        output:
+          $ref: '#/components/schemas/RiskEnrichmentStatus'
+    topology:
+      nodes:
+        start:
+          kind: start
+        identify-company:
+          kind: activity
+          activityRef: IdentifyCompanyActivity
+        enrich-dnb-data:
+          kind: bridge
+          bridgeRef: bridges.Dnb.EnrichCompany
+        calculate-risk:
+          kind: childWorkflow
+          workflowRef: CalculateRiskWorkflow
+        document-pdf:
+          kind: bridge
+          bridgeRef: bridges.DocumentService.GeneratePdf
+        end:
+          kind: end
+      edges:
+        - from: start
+          to: identify-company
+        - from: identify-company
+          to: enrich-dnb-data
+        - from: enrich-dnb-data
+          to: calculate-risk
+        - from: calculate-risk
+          to: document-pdf
+        - from: document-pdf
+          to: end
+
+  CalculateRiskWorkflow:
+    displayName: Calculate risk child workflow
+    visibility: internal
+    parentWorkflows:
+      - RiskEnrichmentWorkflow
+    run:
+      operationId: runCalculateRisk
+      input:
+        $ref: '#/components/schemas/CalculateRiskRequest'
+      output:
+        $ref: '#/components/schemas/RiskScoreResult'
+    topology:
+      nodes:
+        start:
+          kind: start
+        fetch-signals:
+          kind: subflow
+          subflowRef: '#/components/subflows/SignalCollectionSubflow'
+        external-checks:
+          kind: childWorkflow
+          workflowRef: ExternalChecksWorkflow
+        end:
+          kind: end
+      edges:
+        - from: start
+          to: fetch-signals
+        - from: fetch-signals
+          to: external-checks
+        - from: external-checks
+          to: end
+
+components:
+  subflows:
+    SignalCollectionSubflow:
+      summary: Reusable inline subflow for collecting scoring signals.
+      nodes:
+        fetch-payment-history:
+          kind: activity
+          activityRef: FetchPaymentHistoryActivity
+        normalise-signals:
+          kind: activity
+          activityRef: NormaliseRiskSignalsActivity
+      edges:
+        - from: fetch-payment-history
+          to: normalise-signals
+```
+
+A shortened separate bridge example looks like this:
+
+```yaml
+workflowApi: 0.1.0
+info:
+  title: Document Service Bridge Contract
+  version: 1.0.0
+
+host:
+  id: document-service
+  name: Document Service
+
+bridges:
+  DocumentService.GeneratePdf:
+    displayName: Generate risk summary PDF
+    kind: workflowBridge
+    direction: requestReply
+    input:
+      $ref: '#/components/schemas/GeneratePdfRequest'
+    output:
+      $ref: '#/components/schemas/GeneratePdfResult'
+    target:
+      workflowRef: GenerateDocumentWorkflow
+      operationId: runGenerateDocument
+    binding:
+      temporal:
+        bridgeType: nexus
+        endpoint: document-service-nexus
+        service: DocumentService
+        operation: GeneratePdf
+        targetNamespace: B2B.DocumentService
+        targetTaskQueue: document-generation
+        callerNamespaces:
+          - B2B.RiskService
+          - B2B.OfferService
+```
 
 ---
 

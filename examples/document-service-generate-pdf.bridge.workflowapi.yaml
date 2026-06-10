@@ -1,0 +1,124 @@
+workflowApi: 0.1.0
+info:
+  title: Document Service Bridge Contract
+  version: 1.0.0
+  summary: Bridge contract for generating documents from workflow hosts.
+  description: >-
+    This document shows a bridge as a separately owned contract. The bridge is
+    generic in WorkflowAPI, while the Temporal binding maps it to a Nexus
+    service and operation that can cross namespaces or task queues.
+
+host:
+  id: document-service
+  name: Document Service
+  owner:
+    team: B2B Document Engineering
+  environment: prod
+
+bindings:
+  temporal:
+    namespace: B2B.DocumentService
+    taskQueue: document-generation
+    webUrl: https://temporal.example.internal/namespaces/B2B.DocumentService
+
+bridges:
+  DocumentService.GeneratePdf:
+    displayName: Generate risk summary PDF
+    kind: workflowBridge
+    summary: Invokes the Document Service to render and persist a final PDF.
+    description: >-
+      Used by upstream workflow hosts that need durable document generation
+      without directly coupling to the Document Service worker implementation.
+    direction: requestReply
+    input:
+      $ref: '#/components/schemas/GeneratePdfRequest'
+    output:
+      $ref: '#/components/schemas/GeneratePdfResult'
+    target:
+      workflowRef: GenerateDocumentWorkflow
+      operationId: runGenerateDocument
+    binding:
+      temporal:
+        bridgeType: nexus
+        endpoint: document-service-nexus
+        service: DocumentService
+        operation: GeneratePdf
+        targetNamespace: B2B.DocumentService
+        targetTaskQueue: document-generation
+        callerNamespaces:
+          - B2B.RiskService
+          - B2B.OfferService
+        timeout: PT2M
+        retryPolicy:
+          initialInterval: PT1S
+          backoffCoefficient: 2
+          maximumAttempts: 3
+
+workflows:
+  GenerateDocumentWorkflow:
+    name: GenerateDocumentWorkflow
+    displayName: Generate document workflow
+    summary: Renders and stores generated PDF documents.
+    run:
+      operationId: runGenerateDocument
+      input:
+        $ref: '#/components/schemas/GeneratePdfRequest'
+      output:
+        $ref: '#/components/schemas/GeneratePdfResult'
+    topology:
+      nodes:
+        start:
+          kind: start
+        render-template:
+          kind: activity
+          displayName: Render template
+          activityRef: RenderTemplateActivity
+        store-document:
+          kind: activity
+          displayName: Store document
+          activityRef: StoreDocumentActivity
+        publish-document-created:
+          kind: activity
+          displayName: Publish document created
+          activityRef: PublishDocumentCreatedActivity
+        end:
+          kind: end
+      edges:
+        - from: start
+          to: render-template
+        - from: render-template
+          to: store-document
+        - from: store-document
+          to: publish-document-created
+        - from: publish-document-created
+          to: end
+
+components:
+  schemas:
+    GeneratePdfRequest:
+      type: object
+      required: [businessKey, templateCode, payload]
+      properties:
+        businessKey:
+          type: string
+          description: Stable business correlation key supplied by the caller.
+        templateCode:
+          type: string
+          example: risk-summary-v1
+        payload:
+          type: object
+          additionalProperties: true
+        requestedBy:
+          type: string
+    GeneratePdfResult:
+      type: object
+      required: [documentId, status]
+      properties:
+        documentId:
+          type: string
+        status:
+          type: string
+          enum: [Created, Failed]
+        uri:
+          type: string
+          format: uri
