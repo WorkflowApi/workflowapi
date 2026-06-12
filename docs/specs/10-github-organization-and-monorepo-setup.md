@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 10. GitHub Organization and Monorepo Setup Instructions
 
 Status: v0.1 design guidance  
@@ -338,7 +341,7 @@ Recommended GHCR image names:
 
 ```text
 ghcr.io/workflowapi/workflowapi-catalog
-ghcr.io/workflowapi/workflowapi-samples-risk-service
+ghcr.io/workflowapi/workflowapi-samples-order-service
 ghcr.io/workflowapi/workflowapi-samples-offer-service
 ```
 

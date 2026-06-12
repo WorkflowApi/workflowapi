@@ -1,4 +1,7 @@
-# 04 — Reference UI and Catalog Design
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 04 - Reference UI and Catalog Design
 
 Version: **0.1 draft**  
 Audience: UI agents, catalog agents, Aspire agents, product agents  
@@ -71,7 +74,7 @@ Purpose:
 
 ```csharp
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(...);
 
 app.MapWorkflowApi();
@@ -93,7 +96,7 @@ app.MapWorkflowApiReference(options =>
 {
     options.RoutePrefix = "/workflow-api/reference";
     options.DocumentUrl = "/workflow-api/v1.json";
-    options.Title = "Risk Service Workflow API";
+    options.Title = "Commerce Order Workflow API";
     options.DefaultView = WorkflowApiReferenceView.Workflows;
 });
 ```
@@ -197,11 +200,11 @@ Export graph views
 #### 4.3.1 Workflow hosts
 
 ```text
-risk-service
-  owner: Team ECR
+order-service
+  owner: Commerce Platform Team
   runtime: temporal
-  namespace: B2B.RiskService
-  taskQueues: risk-service, risk-refresh
+  namespace: Commerce.OrderService
+  taskQueues: order-service, risk-refresh
   workflows: 4
   activities: 18
   nexus services: 1
@@ -210,11 +213,11 @@ risk-service
 #### 4.3.2 Workflow catalog
 
 ```text
-RiskEnrichmentWorkflow
-  host: risk-service
-  owner: Team ECR
+OrderFulfilmentWorkflow
+  host: order-service
+  owner: Commerce Platform Team
   domain: Risk
-  run input: RiskEnrichmentRequest
+  run input: OrderFulfilmentRequest
   signals: 2
   queries: 1
   updates: 1
@@ -226,8 +229,8 @@ RiskEnrichmentWorkflow
 ```text
 OfferCalculationWorkflow
   -> calls Nexus RiskService.CalculateRisk
-      -> implemented by risk-service
-      -> handled by RiskEnrichmentWorkflow
+      -> implemented by order-service
+      -> handled by OrderFulfilmentWorkflow
 ```
 
 #### 4.3.4 Dependency graph
@@ -236,20 +239,20 @@ OfferCalculationWorkflow
 Offer Worker
   OfferCalculationWorkflow
     -> RiskService.CalculateRisk
-       -> Risk Worker
-          RiskEnrichmentWorkflow
-             -> D&B external system
+       -> Commerce Order Worker
+          OrderFulfilmentWorkflow
+             -> payment provider external system
              -> DocumentService.GeneratePdf
 ```
 
 #### 4.3.5 Runtime overlay
 
 ```text
-RiskEnrichmentWorkflow
+OrderFulfilmentWorkflow
   executions last 7d: 2,431
   failed: 12
   p95 duration: 2m 14s
-  slowest step: Enrich D&B data
+  slowest step: Take payment
 ```
 
 ---
@@ -378,7 +381,7 @@ Add a catalog container only when collation is desired:
 ```csharp
 var temporal = builder.AddTemporalServer("temporal");
 
-var riskWorker = builder.AddProject<Projects.Risk_Worker>("risk-worker")
+var riskWorker = builder.AddProject<Projects.Risk_Worker>("commerce-order-worker")
     .WithReference(temporal);
 
 var offerWorker = builder.AddProject<Projects.Offer_Worker>("offer-worker")
@@ -427,8 +430,8 @@ Override only when needed.
 
 ```yaml
 sources:
-  - name: risk-service
-    url: http://risk-service/.well-known/workflow-api.json
+  - name: order-service
+    url: http://order-service/.well-known/workflow-api.json
 ```
 
 Good for local Aspire and dynamic environments.
@@ -437,8 +440,8 @@ Good for local Aspire and dynamic environments.
 
 ```yaml
 sources:
-  - name: risk-service
-    file: artifacts/risk-service/workflow-api.json
+  - name: order-service
+    file: artifacts/order-service/workflow-api.json
     version: 1.4.2
     commit: abc123
 ```
@@ -449,8 +452,8 @@ Good for enterprise governance.
 
 ```yaml
 sources:
-  - name: risk-service
-    repository: https://github.com/company/risk-service
+  - name: order-service
+    repository: https://github.com/company/order-service
     path: artifacts/workflow-api/v1.json
 ```
 
@@ -458,8 +461,8 @@ sources:
 
 ```yaml
 sources:
-  - name: risk-service
-    oci: ghcr.io/company/risk-service-workflowapi:1.4.2
+  - name: order-service
+    oci: ghcr.io/company/order-service-workflowapi:1.4.2
 ```
 
 This can be added later.
@@ -471,10 +474,10 @@ This can be added later.
 ### 9.1 Per-service UI navigation
 
 ```text
-Risk Service Workflow API
+Commerce Order Workflow API
   Overview
   Workflows
-    RiskEnrichmentWorkflow
+    OrderFulfilmentWorkflow
     MonthlyRiskRefreshWorkflow
   Activities
   Nexus Services
@@ -591,7 +594,7 @@ Potential future endpoint:
 
 ```http
 GET /api/catalog/search?q=risk enrichment dnb
-GET /api/catalog/workflows/risk-enrichment/context
+GET /api/catalog/workflows/order-fulfilment/context
 ```
 
 For now, focus on deterministic documents and searchable catalog data.

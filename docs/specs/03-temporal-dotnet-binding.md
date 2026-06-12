@@ -1,4 +1,7 @@
-# 03 — Temporal .NET Binding Design
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 03 - Temporal .NET Binding Design
 
 Version: **0.1 draft**  
 Audience: Temporal .NET agents, runtime binding agents, catalog agents  
@@ -160,9 +163,9 @@ WorkflowAPI must support explicit metadata and transformers for these.
 bindings:
   temporal:
     targetHost: temporal.company.internal:7233
-    namespace: B2B.RiskService
+    namespace: Commerce.OrderService
     taskQueues:
-      - risk-service
+      - order-service
     webUrl: https://temporal.company.internal
     environment: local
 ```
@@ -182,8 +185,8 @@ Fields:
 ```yaml
 bindings:
   temporal:
-    workflowType: RiskEnrichmentWorkflow
-    taskQueue: risk-service
+    workflowType: OrderFulfilmentWorkflow
+    taskQueue: order-service
 ```
 
 ### 5.3 Activity-level binding
@@ -191,8 +194,8 @@ bindings:
 ```yaml
 bindings:
   temporal:
-    activityType: EnrichDunsDataActivity
-    taskQueue: risk-service
+    activityType: TakePaymentActivity
+    taskQueue: order-service
 ```
 
 ### 5.4 Signal/query/update binding
@@ -202,7 +205,7 @@ signals:
   creditConsentReceived:
     bindings:
       temporal:
-        signalName: CreditConsentReceived
+        signalName: PaymentAuthorised
 
 queries:
   getStatus:
@@ -227,11 +230,11 @@ implements:
         CalculateRisk:
           bindings:
             temporal:
-              endpointName: risk-service
+              endpointName: order-service
               serviceName: RiskService
               operationName: CalculateRisk
-              targetNamespace: B2B.RiskService
-              targetTaskQueue: risk-service
+              targetNamespace: Commerce.OrderService
+              targetTaskQueue: order-service
 ```
 
 `targetNamespace` and `targetTaskQueue` may come from deployment/catalog data rather than the service code.
@@ -264,17 +267,17 @@ This is valid and practical for Temporal .NET because strongly typed callers ref
 ### 6.2 Worker host
 
 ```csharp
-builder.Services.AddHostedTemporalWorker("risk-service")
-    .AddWorkflow<RiskEnrichmentWorkflow>()
+builder.Services.AddHostedTemporalWorker("order-service")
+    .AddWorkflow<OrderFulfilmentWorkflow>()
     .AddActivity<IdentifyCompanyActivity>()
-    .AddActivity<EnrichDunsDataActivity>();
+    .AddActivity<TakePaymentActivity>();
 
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(options =>
     {
         options.Namespace = builder.Configuration["Temporal:Namespace"] ?? "default";
-        options.TaskQueue = "risk-service";
+        options.TaskQueue = "order-service";
     });
 ```
 
@@ -283,22 +286,22 @@ builder.Services.AddWorkflowApi("v1")
 A single ASP.NET Core application can be both API and workflow host.
 
 ```csharp
-builder.Services.AddHostedTemporalWorker("risk-service")
-    .AddWorkflow<RiskEnrichmentWorkflow>()
-    .AddActivity<EnrichDunsDataActivity>();
+builder.Services.AddHostedTemporalWorker("order-service")
+    .AddWorkflow<OrderFulfilmentWorkflow>()
+    .AddActivity<TakePaymentActivity>();
 
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(...);
 
-app.MapPost("/risk/enrich", async (RiskRequest request, ITemporalClient client) =>
+app.MapPost("/risk/enrich", async (OrderFulfilmentRequest request, ITemporalClient client) =>
 {
     var handle = await client.StartWorkflowAsync(
-        (RiskEnrichmentWorkflow wf) => wf.RunAsync(request),
+        (OrderFulfilmentWorkflow wf) => wf.RunAsync(request),
         new WorkflowOptions
         {
-            Id = $"risk-{request.Duns}",
-            TaskQueue = "risk-service"
+            Id = $"risk-{request.OrderId}",
+            TaskQueue = "order-service"
         });
 
     return Results.Accepted($"/risk/enrich/{handle.Id}");
@@ -318,11 +321,11 @@ Temporal .NET's strongly typed client pattern uses workflow classes in expressio
 
 ```csharp
 await client.StartWorkflowAsync(
-    (RiskEnrichmentWorkflow wf) => wf.RunAsync(request),
+    (OrderFulfilmentWorkflow wf) => wf.RunAsync(request),
     new WorkflowOptions
     {
         Id = workflowId,
-        TaskQueue = "risk-service"
+        TaskQueue = "order-service"
     });
 ```
 
@@ -381,10 +384,10 @@ WorkflowAPI should provide three sources for topology:
 ### 8.1 Attribute-based simple topology
 
 ```csharp
-[WorkflowApiEdge("identify-company", "enrich-dnb")]
-[WorkflowApiEdge("identify-company", "manual-review", Label = "Low confidence")]
-[WorkflowApiEdge("manual-review", "enrich-dnb")]
-public sealed class RiskEnrichmentWorkflow
+[WorkflowApiEdge("check-and-block-inventory", "take-payment")]
+[WorkflowApiEdge("check-and-block-inventory", "manual-review", Label = "Low confidence")]
+[WorkflowApiEdge("manual-review", "take-payment")]
+public sealed class OrderFulfilmentWorkflow
 {
 }
 ```
@@ -394,20 +397,20 @@ public sealed class RiskEnrichmentWorkflow
 Recommended for non-trivial workflows:
 
 ```csharp
-public sealed class RiskEnrichmentWorkflowApiDefinition
-    : WorkflowApiDefinition<RiskEnrichmentWorkflow>
+public sealed class OrderFulfilmentWorkflowApiDefinition
+    : WorkflowApiDefinition<OrderFulfilmentWorkflow>
 {
     public override void Define(IWorkflowApiBuilder builder)
     {
-        builder.Step("identify-company")
+        builder.Step("check-and-block-inventory")
             .Activity("IdentifyCompanyActivity")
-            .Title("Identify company");
+            .Title("Check and block inventory");
 
-        builder.Step("enrich-dnb")
-            .Activity("EnrichDunsDataActivity")
-            .Title("Enrich D&B data");
+        builder.Step("take-payment")
+            .Activity("TakePaymentActivity")
+            .Title("Take payment");
 
-        builder.Edge("identify-company", "enrich-dnb");
+        builder.Edge("check-and-block-inventory", "take-payment");
     }
 }
 ```
@@ -432,10 +435,10 @@ Temporal Search Attributes are powerful business dimensions but require care.
 WorkflowAPI should document intended Search Attributes:
 
 ```csharp
-[WorkflowApiSearchAttribute("BusinessProcess", Type = "Keyword", Summary = "Business process key")]
-[WorkflowApiSearchAttribute("Duns", Type = "Keyword", Summary = "D&B DUNS number")]
-[WorkflowApiSearchAttribute("SalesChannel", Type = "Keyword")]
-public sealed class RiskEnrichmentWorkflow
+[WorkflowApiSearchDimension("BusinessProcess", Type = "Keyword", Summary = "Business process key")]
+[WorkflowApiSearchDimension("OrderId", Type = "Keyword", Summary = "payment provider DUNS number")]
+[WorkflowApiSearchDimension("SalesChannel", Type = "Keyword")]
+public sealed class OrderFulfilmentWorkflow
 {
 }
 ```
@@ -446,7 +449,7 @@ Generated:
 searchAttributes:
   - name: BusinessProcess
     type: Keyword
-  - name: Duns
+  - name: OrderId
     type: Keyword
   - name: SalesChannel
     type: Keyword
@@ -475,12 +478,12 @@ implements:
         CalculateRisk:
           input:
             schema:
-              $ref: '#/components/schemas/CalculateRiskRequest'
+              $ref: '#/components/schemas/CalculateOrderFulfilmentRequest'
           output:
             schema:
-              $ref: '#/components/schemas/CalculateRiskResult'
+              $ref: '#/components/schemas/CalculateOrderFulfilmentResult'
           handledBy:
-            workflowRef: '#/implements/workflows/risk-enrichment'
+            workflowRef: '#/implements/workflows/order-fulfilment'
           bindings:
             temporal:
               serviceName: RiskService
@@ -493,9 +496,9 @@ implements:
 workflows:
   offer-calculation:
     steps:
-      calculate-risk:
+      register-shipping:
         kind: nexusOperation
-        title: Calculate risk
+        title: Register shipping
         calls:
           nexusService: RiskService
           operation: CalculateRisk
@@ -549,7 +552,7 @@ No separate container required for one service.
 
 ```csharp
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(...);
 
 app.MapWorkflowApi();
@@ -563,7 +566,7 @@ Separate catalog container useful for collation:
 ```csharp
 var temporal = builder.AddTemporalServer("temporal");
 
-var riskWorker = builder.AddProject<Projects.Risk_Worker>("risk-worker")
+var riskWorker = builder.AddProject<Projects.Risk_Worker>("commerce-order-worker")
     .WithReference(temporal);
 
 var offerWorker = builder.AddProject<Projects.Offer_Worker>("offer-worker")

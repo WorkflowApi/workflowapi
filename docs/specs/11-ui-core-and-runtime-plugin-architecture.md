@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # WorkflowAPI UI Core and Runtime Plugin Architecture
 
 ## Status
@@ -404,7 +407,7 @@ The actual frontend may call catalog/reference backend APIs rather than invoking
 
 ```json
 {
-  "workflowId": "risk-enrichment",
+  "workflowId": "order-fulfilment",
   "runtime": "temporal",
   "timeRange": {
     "from": "2026-06-01T00:00:00Z",
@@ -432,7 +435,7 @@ The actual frontend may call catalog/reference backend APIs rather than invoking
   "links": [
     {
       "label": "Open in Temporal Web",
-      "url": "https://temporal.example/namespaces/B2B.RiskService/workflows?query=..."
+      "url": "https://temporal.example/namespaces/Commerce.OrderService/workflows?query=..."
     }
   ]
 }
@@ -442,8 +445,8 @@ The actual frontend may call catalog/reference backend APIs rather than invoking
 
 ```json
 {
-  "workflowId": "risk-enrichment",
-  "stepId": "enrich-dnb",
+  "workflowId": "order-fulfilment",
+  "stepId": "take-payment",
   "runtime": "temporal",
   "counts": {
     "scheduled": 2398,
@@ -489,7 +492,7 @@ The actual frontend may call catalog/reference backend APIs rather than invoking
     "p95Ms": 9800
   },
   "source": {
-    "workflowId": "risk-enrichment",
+    "workflowId": "order-fulfilment",
     "stepId": "generate-pdf"
   },
   "target": {
@@ -521,11 +524,11 @@ Runtime plugins should provide data, not arbitrary uncontrolled UI whenever poss
 Example rendering:
 
 ```text
-Node: Enrich D&B data
+Node: Take payment
 Base spec:
   kind: activity
-  activityType: EnrichDunsDataActivity
-  summary: Calls D&B and stores enrichment results.
+  activityType: TakePaymentActivity
+  summary: Calls payment provider and stores enrichment results.
 
 Temporal overlay:
   2,398 scheduled
@@ -559,7 +562,7 @@ Typical configuration:
       "Temporal": {
         "Enabled": true,
         "Address": "temporal-frontend:7233",
-        "Namespace": "B2B.RiskService",
+        "Namespace": "Commerce.OrderService",
         "WebUrl": "https://temporal.example",
         "Authentication": {
           "Mode": "ApiKey"

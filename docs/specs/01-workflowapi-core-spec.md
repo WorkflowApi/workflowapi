@@ -1,941 +1,249 @@
-# 01 — WorkflowAPI Core Specification
+# 01. WorkflowAPI Core Specification
 
-Version: **0.1 draft**  
-Audience: standards/design agents, schema agents, catalog agents, .NET generator agents  
-Status: proposal
-
----
+Status: v1 tightened draft  
+Audience: specification authors, .NET generator authors, UI authors, Temporal binding authors  
+Scope: compact generic durable execution workflow API specification and static workflow display only
 
 ## 1. Purpose
 
-WorkflowAPI is a proposed specification for describing durable workflow APIs.
+WorkflowAPI is a compact specification for describing durable execution workflow APIs.
 
-It is intended to do for workflows what OpenAPI does for HTTP APIs and what AsyncAPI does for event/message APIs.
+It is intended to sit beside OpenAPI and AsyncAPI:
 
 ```text
-OpenAPI      -> HTTP APIs
+OpenAPI      -> HTTP request/response APIs
 AsyncAPI     -> event/message APIs
-WorkflowAPI  -> durable workflow/process APIs
+WorkflowAPI  -> durable execution workflow APIs
 ```
 
-A WorkflowAPI document describes the public and operational surface of workflow-hosting applications:
+WorkflowAPI v1 is intentionally narrow. It describes the workflow contract and an optional declared display topology. It does not model the external caller that starts a workflow, and it does not attempt to become BPMN-light.
 
-- workflow types;
-- workflow start/run operations;
-- signals/messages sent to running workflows;
-- queries/read-only workflow state operations;
-- updates/read-write workflow interactions;
-- activities and business steps;
-- child workflows;
-- timers/waits;
-- Nexus-style cross-workflow operations;
-- runtime bindings such as Temporal namespace/task queue;
-- business ownership, tags, domains, and SLAs;
-- schema definitions for request/response payloads;
-- relationships/dependencies used by catalog and visualisation tools.
+The v1 implementation focus is:
 
-The initial implementation target is **Temporal .NET**, but the core document model should remain implementation-neutral.
+- a generic WorkflowAPI document model;
+- workflow identity and metadata;
+- one durable workflow entry point per workflow;
+- signals sent to running workflows;
+- queries against workflow state;
+- updates that interact with and may mutate workflow state;
+- activities invoked by workflows;
+- child workflow references;
+- optional bridge references for durable cross-boundary operations;
+- optional declared display topology;
+- schema references for workflow payloads;
+- runtime bindings, with Temporal as the first binding;
+- .NET attributes and fluent definitions for generation;
+- static workflow display/reference UI.
 
----
+## 2. Non-goals
 
-## 2. Design principles
+WorkflowAPI v1 does not model:
 
-### 2.1 Generic core, runtime-specific bindings
+- the external caller that starts a workflow;
+- HTTP endpoints that initiate workflows;
+- message subscriptions that initiate workflows;
+- schedulers, cron triggers, CRM actions, portal actions, command handlers, or other application-specific starters;
+- BPMN-style process control flow;
+- gateways, lanes, pools, joins, compensation flows, or executable process semantics;
+- runtime histories;
+- runtime metrics;
+- observed topology;
+- catalogue collation;
+- source polling;
+- workflow control-plane actions;
+- workflow editing;
+- code generation from diagrams.
 
-WorkflowAPI must not be Temporal-only.
+Caller-facing APIs belong in OpenAPI, AsyncAPI, implementation documentation, or application-specific architecture documents. WorkflowAPI describes the workflow-hosted durable execution surface itself.
 
-The core vocabulary should describe durable workflow concepts generically. Temporal-specific metadata belongs in a binding section, analogous to AsyncAPI protocol bindings or OpenAPI `x-*` extensions.
+## 3. Design principles
 
-Recommended shape:
+### 3.1 Generic core, runtime-specific bindings
+
+The core vocabulary must be generic. Temporal is the first binding and the first implementation target, not the definition of the standard.
+
+### 3.2 The workflow entry point is not the caller
+
+The `run` object describes the workflow's durable entry point. In Temporal .NET, this corresponds to the method marked with `[WorkflowRun]`, commonly named `RunAsync`.
+
+It does not describe who starts the workflow or how the workflow is started from outside the worker. The caller may be an HTTP API, message handler, scheduler, CLI, another workflow, CRM system, broker portal, storefront event or another application-specific trigger. Those surfaces are outside WorkflowAPI v1.
+
+### 3.3 Activities are called activities
+
+The durable execution units invoked by a workflow are called `activities`. WorkflowAPI does not rename them to generic tasks or durable execution steps in v1.
+
+### 3.4 Declared display topology, not executable process logic
+
+WorkflowAPI topology is a declared display map. It is intended to help humans and tools understand the shape of a workflow. It is not an executable control-flow model and does not prove all possible runtime paths.
+
+### 3.5 Display only in v1
+
+The v1 UI is a static reference/display UI. It consumes a WorkflowAPI document and renders workflow details and the declared display topology. It does not connect to Temporal or any other runtime for metrics or control-plane actions.
+
+## 4. Top-level document shape
 
 ```yaml
-workflowApi: 0.1.0
-info: ...
-implements: ...
-bindings:
-  temporal: ...
-```
-
-Do not name the standard `TemporalWorkflowAPI`. Temporal is the first binding, not the whole standard.
-
-### 2.2 Generated by the workflow host, not hand-authored first
-
-The primary source should be the workflow-hosting application or workflows assembly, using:
-
-- framework metadata;
-- WorkflowAPI attributes;
-- XML documentation comments;
-- runtime/hosting options;
-- optional fluent definitions;
-- transformers;
-- optional build-time export.
-
-Hand-authored documents should be supported for tests and interop, but not required for the .NET developer experience.
-
-### 2.3 Document generation is not UI rendering
-
-WorkflowAPI generation and UI rendering must be separate packages.
-
-The local service should be able to expose:
-
-```text
-/workflow-api/v1.json
-/.well-known/workflow-api.json
-/workflow-api/reference
-```
-
-The reference UI should consume the document endpoint. A central catalog should consume many document endpoints or CI-published artifacts.
-
-### 2.4 Contract data is not runtime telemetry
-
-WorkflowAPI describes declared workflow capabilities and topology. Runtime metrics are an overlay.
-
-The spec can define where runtime facts attach, but it should not require live Temporal access.
-
-### 2.5 No producer/consumer terminology
-
-Avoid `producer`, `consumer`, and `provider` in the core vocabulary. They are ambiguous in workflow systems.
-
-Use:
-
-- `host` — the application that owns or hosts workflow capabilities;
-- `implements` — workflow capabilities implemented by the host;
-- `dependsOn` — workflow, Nexus, external, or event dependencies;
-- `calls` — an explicit step-level outgoing relationship;
-- `bindings` — runtime-specific implementation metadata.
-
-### 2.6 Works for API + worker in one process
-
-A workflow host may be:
-
-- a dedicated worker process;
-- an ASP.NET Core API that also runs a background worker;
-- a monolith;
-- a multi-queue worker;
-- a multi-namespace host;
-- a serverless workflow app;
-- a future non-Temporal workflow engine host.
-
-The spec must describe workflow capabilities, not assume a physical deployment topology.
-
----
-
-## 3. Glossary
-
-| Term | Meaning |
-|---|---|
-| WorkflowAPI document | A JSON/YAML document describing durable workflow capabilities. |
-| Workflow host | An application/process/module that owns or hosts workflow capabilities. |
-| Catalog source | A URL, file, build artifact, or service endpoint that exposes a WorkflowAPI document. |
-| Workflow | A long-running durable process with a start/run operation and optional interactions. |
-| Run operation | The workflow entry point used to start execution. |
-| Signal | A fire-and-forget message sent to a running workflow. |
-| Query | A read-only operation against current workflow state. |
-| Update | A request/response write operation against a running workflow. |
-| Activity | A task/operation invoked by a workflow, often side-effecting. |
-| Step | A business-visible or technical step in the workflow topology. A step may map to an activity, child workflow, timer, Nexus operation, external call, event, or logical grouping. |
-| Edge | A declared relationship between steps. Edges describe intended topology, not necessarily every possible runtime path. |
-| Binding | Runtime-specific metadata for a workflow engine or protocol, such as Temporal namespace/task queue/workflow type. |
-| Runtime overlay | Execution counts, durations, failures, retries, and other facts from a runtime system. |
-| Nexus operation | A cross-Temporal-application operation exposed through Temporal Nexus or equivalent. |
-
----
-
-## 4. Document format
-
-WorkflowAPI documents should be valid JSON or YAML.
-
-The canonical machine representation is JSON. YAML is allowed for authoring/readability, as with OpenAPI and AsyncAPI.
-
-Recommended media types:
-
-```text
-application/vnd.workflowapi+json
-application/vnd.workflowapi+yaml
-application/json
-application/yaml
-```
-
-Recommended endpoint conventions:
-
-```text
-/workflow-api/{documentName}.json
-/.well-known/workflow-api.json
-```
-
-The `.well-known` endpoint should point to the default document for discovery tools. The `/workflow-api/{documentName}.json` endpoint supports versioned/named documents.
-
----
-
-## 5. Top-level document shape
-
-Draft schema outline:
-
-```yaml
-workflowApi: 0.1.0
-
-info:
-  title: Risk Service Workflow API
-  version: 1.0.0
-  summary: Durable workflow contracts for the Risk Service.
-  description: >
-    Workflows for D&B enrichment, credit-risk calculation, and risk refresh.
-  contact:
-    name: Team ECR
-    url: https://backstage.example.com/catalog/team-ecr
-    email: team-ecr@example.com
-  license:
-    name: Internal
-
-host:
-  name: risk-service
-  displayName: Risk Service
-  kind: application
-  owner: Team ECR
-  domain: Risk
-  tags:
-    - b2b
-    - risk
-    - temporal
-
-bindings:
-  temporal:
-    namespace: B2B.RiskService
-    taskQueues:
-      - risk-service
-
-implements:
-  workflows: {}
-  activities: {}
-  nexusServices: {}
-
-components:
-  schemas: {}
-  examples: {}
-  tags: {}
-  owners: {}
-
+workflowApi: 1.0.0
+id: commerce-order-workflows
+info: {}
+host: {}
+bindings: {}
+workflows: {}
+activities: {}
+bridges: {}
+components: {}
 extensions: {}
 ```
 
-Fields:
+There is no top-level `implements` object in v1. Implemented capabilities are expressed through `workflows`, `activities` and `bridges`.
 
-| Field | Required | Description |
-|---|---:|---|
-| `workflowApi` | Yes | Specification version. |
-| `info` | Yes | Document metadata. |
-| `host` | Recommended | The application/module exposing the workflow capabilities. |
-| `bindings` | Optional | Runtime-specific metadata. |
-| `implements` | Yes | Workflow capabilities implemented by the host. |
-| `components` | Optional | Shared schemas, examples, owners, tags, links. |
-| `extensions` | Optional | Non-standard extension data. |
-
----
-
-## 6. `info` object
-
-Similar in spirit to OpenAPI/AsyncAPI `info`.
+## 5. Workflow example
 
 ```yaml
+workflowApi: 1.0.0
+id: commerce-order-workflows
 info:
-  title: Risk Service Workflow API
+  title: Commerce Order Workflow API
   version: 1.0.0
-  summary: Durable workflow contracts for the Risk Service.
-  description: Markdown-capable long-form description.
-  termsOfService: https://example.com/terms
-  contact:
-    name: Team ECR
-    url: https://example.com/teams/ecr
-    email: team-ecr@example.com
-  license:
-    name: Internal
-    url: https://example.com/license
-```
-
-Required:
-
-- `title`
-- `version`
-
-Recommended:
-
-- `summary`
-- `description`
-- `contact`
-
----
-
-## 7. `host` object
-
-The `host` object describes the application or module that publishes the document.
-
-```yaml
+  summary: Durable workflow contracts for e-commerce order fulfilment.
 host:
-  name: risk-service
-  displayName: Risk Service
-  kind: application
-  owner: Team ECR
-  domain: Risk
-  repository: https://github.com/company/risk-service
-  lifecycle: production
-  tags:
-    - b2b
-    - risk
-```
-
-Fields:
-
-| Field | Type | Description |
-|---|---|---|
-| `name` | string | Stable machine-readable host name. |
-| `displayName` | string | Human-readable name. |
-| `kind` | string | `application`, `worker`, `api-worker`, `module`, `monolith`, `service`, etc. |
-| `owner` | string/ref | Owning team/person/group. |
-| `domain` | string | Business or architecture domain. |
-| `repository` | URI | Source repository. |
-| `lifecycle` | string | `experimental`, `development`, `production`, `deprecated`, etc. |
-| `tags` | string[] | Search/filter tags. |
-
-Do not use `provider` here.
-
----
-
-## 8. `implements.workflows`
-
-A workflow entry describes a durable workflow contract.
-
-```yaml
-implements:
-  workflows:
-    risk-enrichment:
-      title: B2B Risk Enrichment
-      summary: Enriches a company with D&B data and calculates risk.
-      description: >
-        Started from broker, website, sales portal, or CRM leads.
-      lifecycle: production
-      owner: Team ECR
-      tags:
-        - risk
-        - dnb
-      run:
-        operationId: startRiskEnrichment
-        input:
-          schema:
-            $ref: '#/components/schemas/RiskEnrichmentRequest'
-        output:
-          schema:
-            $ref: '#/components/schemas/RiskEnrichmentResult'
-      signals: {}
-      queries: {}
-      updates: {}
-      steps: {}
-      edges: []
-      dependsOn: {}
-      bindings:
-        temporal:
-          workflowType: RiskEnrichmentWorkflow
-          taskQueue: risk-service
-```
-
-Fields:
-
-| Field | Required | Description |
-|---|---:|---|
-| key | Yes | Stable workflow ID inside the document. |
-| `title` | Recommended | Human-readable title. |
-| `summary` | Recommended | One-line description. |
-| `description` | Optional | Markdown-capable description. |
-| `lifecycle` | Optional | Lifecycle state. |
-| `owner` | Optional | Override host owner if different. |
-| `run` | Yes | Start/run operation. |
-| `signals` | Optional | Fire-and-forget messages. |
-| `queries` | Optional | Read-only state operations. |
-| `updates` | Optional | Request/response state-changing operations. |
-| `steps` | Optional | Declared workflow topology steps. |
-| `edges` | Optional | Declared step relationships. |
-| `dependsOn` | Optional | Workflow-level dependencies. |
-| `bindings` | Optional | Runtime-specific binding metadata. |
-
----
-
-## 9. Workflow operations
-
-WorkflowAPI has four operation kinds:
-
-- `run`
-- `signals`
-- `queries`
-- `updates`
-
-They share common metadata:
-
-```yaml
-operationId: startRiskEnrichment
-name: StartRiskEnrichment
-title: Start risk enrichment
-summary: Starts the risk enrichment process.
-description: Markdown-capable explanation.
-input:
-  schema:
-    $ref: '#/components/schemas/RiskEnrichmentRequest'
-output:
-  schema:
-    $ref: '#/components/schemas/RiskEnrichmentResult'
-examples:
-  - $ref: '#/components/examples/StartRiskEnrichmentExample'
-bindings:
-  temporal: {}
-tags:
-  - risk
-```
-
-### 9.1 `run`
-
-The workflow start operation.
-
-```yaml
-run:
-  operationId: startRiskEnrichment
-  title: Start risk enrichment
-  input:
-    schema:
-      $ref: '#/components/schemas/RiskEnrichmentRequest'
-  output:
-    schema:
-      $ref: '#/components/schemas/RiskEnrichmentResult'
-```
-
-### 9.2 `signals`
-
-Signals are asynchronous fire-and-forget messages to a running workflow.
-
-```yaml
-signals:
-  creditConsentReceived:
-    operationId: signalCreditConsentReceived
-    title: Credit consent received
-    input:
-      schema:
-        $ref: '#/components/schemas/CreditConsentSignal'
-    bindings:
-      temporal:
-        signalName: CreditConsentReceived
-```
-
-### 9.3 `queries`
-
-Queries are read-only workflow state operations.
-
-```yaml
-queries:
-  getStatus:
-    operationId: queryRiskStatus
-    title: Get current status
-    output:
-      schema:
-        $ref: '#/components/schemas/RiskWorkflowStatus'
-    bindings:
-      temporal:
-        queryName: GetStatus
-```
-
-### 9.4 `updates`
-
-Updates are request/response operations that may change workflow state and return a result.
-
-```yaml
-updates:
-  recalculateRisk:
-    operationId: updateRecalculateRisk
-    title: Recalculate risk
-    input:
-      schema:
-        $ref: '#/components/schemas/RecalculateRiskRequest'
-    output:
-      schema:
-        $ref: '#/components/schemas/RiskEnrichmentResult'
-    bindings:
-      temporal:
-        updateName: RecalculateRisk
-```
-
----
-
-## 10. Activities
-
-Activities may be declared at top level and referenced by workflow steps.
-
-```yaml
-implements:
-  activities:
-    enrich-dnb:
-      title: Enrich D&B data
-      summary: Calls D&B and stores the enrichment result.
-      input:
-        schema:
-          $ref: '#/components/schemas/DnbEnrichmentRequest'
-      output:
-        schema:
-          $ref: '#/components/schemas/DnbEnrichmentResult'
-      expectedDuration: PT30S
-      sla: PT2M
-      criticality: high
-      group: External enrichment
-      bindings:
-        temporal:
-          activityType: EnrichDunsDataActivity
-          taskQueue: risk-service
-```
-
-Recommended fields:
-
-- `title`
-- `summary`
-- `input`
-- `output`
-- `expectedDuration`
-- `sla`
-- `criticality`
-- `bindings.temporal.activityType`
-
-Activities may be implementation details. Use `visibility` to control UI exposure:
-
-```yaml
-visibility: internal     # public | internal | hidden
-```
-
----
-
-## 11. Steps and topology
-
-Steps are graph nodes. They provide a business/process view of the workflow.
-
-A step may reference an activity, child workflow, Nexus operation, timer, event, external system, or logical grouping.
-
-```yaml
-steps:
-  identify-company:
-    kind: activity
-    title: Identify company
-    activityRef: '#/implements/activities/identify-company'
-
-  wait-for-credit-consent:
-    kind: timer
-    title: Wait for credit consent
-    expectedDuration: P14D
-
-  generate-document:
-    kind: childWorkflow
-    title: Generate risk document
-    workflowType: GenerateDnbPdfWorkflow
-
-  calculate-risk-via-nexus:
-    kind: nexusOperation
-    title: Calculate risk
-    calls:
-      nexusService: RiskService
-      operation: CalculateRisk
-```
-
-Allowed step kinds, v0.1:
-
-```text
-activity
-childWorkflow
-nexusOperation
-timer
-signal
-query
-update
-externalSystem
-event
-command
-decision
-group
-manualStep
-custom
-```
-
-### 11.1 Edges
-
-Edges describe intended topology.
-
-```yaml
-edges:
-  - from: identify-company
-    to: enrich-dnb
-    label: Company identified
-
-  - from: identify-company
-    to: manual-review
-    label: Low confidence
-    condition: matchConfidence < threshold
-
-  - from: manual-review
-    to: enrich-dnb
-```
-
-Edges should not attempt to encode all executable logic. They are a declared, catalog-friendly process map.
-
-### 11.2 Declared vs observed topology
-
-WorkflowAPI topology is declared. Runtime histories may observe additional paths.
-
-A catalog may show:
-
-- declared but never observed;
-- observed but not declared;
-- SLA declared vs measured;
-- steps with drift between intended and runtime behavior.
-
----
-
-## 12. Dependencies
-
-Workflow dependencies should be declared under `dependsOn`.
-
-```yaml
-dependsOn:
-  workflows:
-    - workflowType: GenerateDnbPdfWorkflow
-      relation: childWorkflow
-  nexusOperations:
-    - service: DocumentService
-      operation: GeneratePdf
-  externalSystems:
-    - name: D&B
-      relation: cleanse-match-api
-  events:
-    - name: CompanyRiskEnriched
-      direction: publishes
-  httpApis:
-    - name: Salesforce CRM
-      operationId: createLeadNote
-```
-
-At step level, use `calls` for explicit graph edges:
-
-```yaml
-steps:
-  generate-pdf:
-    kind: nexusOperation
-    calls:
-      nexusService: DocumentService
-      operation: GeneratePdf
-```
-
-Avoid top-level `consumers` in v0.1. Caller discovery can be added later as catalog-enriched metadata.
-
----
-
-## 13. Nexus services
-
-Nexus-style services can be represented generically and bound to Temporal Nexus.
-
-```yaml
-implements:
-  nexusServices:
-    RiskService:
-      title: Risk Service Nexus API
-      summary: Cross-namespace risk operations.
-      operations:
-        CalculateRisk:
-          title: Calculate risk
-          input:
-            schema:
-              $ref: '#/components/schemas/CalculateRiskRequest'
-          output:
-            schema:
-              $ref: '#/components/schemas/CalculateRiskResult'
-          handledBy:
-            workflowRef: '#/implements/workflows/risk-enrichment'
-          bindings:
-            temporal:
-              serviceName: RiskService
-              operationName: CalculateRisk
-              endpointName: risk-service
-```
-
-The Temporal binding may include endpoint, service, operation, target namespace, and target task queue, but production endpoint routing may be supplied by catalog/deployment metadata rather than by code.
-
----
-
-## 14. Runtime bindings
-
-Bindings can appear at multiple levels:
-
-- document/host level;
-- workflow level;
-- operation level;
-- activity level;
-- step level;
-- Nexus service/operation level.
-
-Example:
-
-```yaml
+  name: commerce-order-worker
+  kind: api-worker
+  owner: Commerce Platform Team
+  domain: Commerce
 bindings:
   temporal:
-    namespace: B2B.RiskService
-    targetHost: temporal.company.internal:7233
+    namespace: Commerce.OrderService
     taskQueues:
-      - risk-service
-```
-
-Workflow override:
-
-```yaml
-implements:
-  workflows:
-    monthly-risk-refresh:
+      - order-service
+workflows:
+  order-fulfilment:
+    title: Order Fulfilment
+    summary: Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.
+    run:
+      operationId: runOrderFulfilment
+      summary: Durable workflow entry point.
+      input:
+        schema:
+          $ref: '#/components/schemas/OrderFulfilmentRequest'
+      output:
+        schema:
+          $ref: '#/components/schemas/OrderFulfilmentResult'
       bindings:
         temporal:
-          workflowType: MonthlyRiskRefreshWorkflow
-          taskQueue: risk-refresh
-```
-
-Bindings should be structured and formal where possible. Use `x-*` extensions only for non-standard metadata.
-
----
-
-## 15. Components and schemas
-
-WorkflowAPI should use JSON Schema-compatible schema objects, ideally aligned with OpenAPI 3.1/JSON Schema expectations.
-
-```yaml
-components:
-  schemas:
-    RiskEnrichmentRequest:
-      type: object
-      required:
-        - duns
-      properties:
-        duns:
-          type: string
-        salesChannel:
-          type: string
-          enum: [Website, Broker, SalesPortal, CRM]
-  examples:
-    RiskEnrichmentRequestExample:
-      value:
-        duns: '315000000'
-        salesChannel: Broker
-```
-
-For .NET, schemas should be generated from System.Text.Json metadata where possible and should respect:
-
-- nullable reference types;
-- required members;
-- JSON property names;
-- `JsonConverter` behavior;
-- enum serialization policy;
-- XML documentation comments;
-- custom schema transformers.
-
----
-
-## 16. Extensions
-
-WorkflowAPI should support extension fields using the OpenAPI-style `x-` prefix.
-
-Examples:
-
-```yaml
-x-internal-cost-center: ECR-42
-x-data-classification: confidential
-x-backstage-entity: component:default/risk-service
-```
-
-Guidance:
-
-- Use formal fields for common needs.
-- Use `bindings` for runtime-specific metadata.
-- Use `x-*` only when the spec does not yet define a formal field.
-- Tooling must preserve unknown `x-*` fields when round-tripping documents.
-
----
-
-## 17. Versioning and compatibility
-
-### 17.1 Document version
-
-`workflowApi` identifies the spec version:
-
-```yaml
-workflowApi: 0.1.0
-```
-
-### 17.2 API version
-
-`info.version` identifies the workflow contract version:
-
-```yaml
-info:
-  version: 1.4.0
-```
-
-### 17.3 Compatibility rules
-
-Backward-compatible changes may include:
-
-- adding a new optional signal;
-- adding a new query;
-- adding optional fields to schemas;
-- adding tags/descriptions/examples;
-- adding new internal activities/steps not marked public;
-- adding an optional Nexus operation.
-
-Potentially breaking changes include:
-
-- removing or renaming workflows;
-- changing workflow type names;
-- changing required input fields;
-- changing output schema in incompatible ways;
-- removing signals/queries/updates;
-- changing Temporal workflow type names/task queues for an existing contract without migration metadata.
-
-### 17.4 Deprecation
-
-```yaml
-lifecycle: deprecated
-deprecated:
-  since: 1.5.0
-  replacement: risk-enrichment-v2
-  removalDate: 2027-01-01
-  reason: New D&B enrichment model.
-```
-
----
-
-## 18. Security and data classification
-
-WorkflowAPI documents may expose sensitive internal process information. Tooling must support access controls in the central catalog.
-
-Recommended fields:
-
-```yaml
-security:
-  visibility: internal
-  dataClassification: confidential
-  scopes:
-    - workflowapi:read:risk
-```
-
-WorkflowAPI documents should avoid including:
-
-- secrets;
-- raw API keys;
-- mTLS private paths in exported artifacts;
-- PII examples;
-- exact production hostnames if not permitted by security policy.
-
-Temporal Search Attributes may not be encrypted in some configurations, so WorkflowAPI should support documenting intended safe search attributes and warning about PII.
-
----
-
-## 19. Runtime overlay attachment model
-
-Runtime overlays are not part of the core declared contract, but tools should attach them by stable keys:
-
-```text
-workflow key
-Temporal workflowType
-operation name
-activity key
-Temporal activityType
-step key
-Nexus service + operation
-namespace + taskQueue
-```
-
-Example overlay response from a catalog API:
-
-```json
-{
-  "workflow": "risk-enrichment",
-  "range": {
-    "from": "2026-06-01T00:00:00Z",
-    "to": "2026-06-10T00:00:00Z"
-  },
-  "metrics": {
-    "started": 2431,
-    "completed": 2353,
-    "failed": 12,
-    "p95DurationMs": 8400
-  },
-  "steps": {
-    "enrich-dnb": {
-      "count": 2398,
-      "failed": 12,
-      "retries": 73,
-      "p95DurationMs": 8400
-    }
-  }
-}
-```
-
----
-
-## 20. Minimal valid document
-
-```yaml
-workflowApi: 0.1.0
-info:
-  title: Risk Workflows
-  version: 1.0.0
-implements:
-  workflows:
-    risk-enrichment:
-      title: B2B Risk Enrichment
-      run:
+          workflowRunMethod: RunAsync
+          workflowType: OrderFulfilmentWorkflow
+    signals:
+      payment-authorised:
+        operationId: payment-authorised
         input:
           schema:
-            $ref: '#/components/schemas/RiskRequest'
+            $ref: '#/components/schemas/PaymentAuthorisedSignal'
+        bindings:
+          temporal:
+            signalName: PaymentAuthorised
+    queries:
+      get-status:
+        operationId: get-status
         output:
           schema:
-            $ref: '#/components/schemas/RiskResult'
+            $ref: '#/components/schemas/OrderStatus'
+        bindings:
+          temporal:
+            queryName: GetStatus
+    updates:
+      change-delivery-address:
+        operationId: change-delivery-address
+        input:
+          schema:
+            $ref: '#/components/schemas/ChangeDeliveryAddressRequest'
+        output:
+          schema:
+            $ref: '#/components/schemas/OrderFulfilmentResult'
+        bindings:
+          temporal:
+            updateName: ChangeDeliveryAddress
+    topology:
+      entry: validate-order
+      steps:
+        validate-order:
+          kind: activity
+          title: Validate order
+          ref:
+            activity: validate-order
+        check-and-block-inventory:
+          kind: activity
+          title: Check and block inventory
+          ref:
+            activity: check-and-block-inventory
+        take-payment:
+          kind: activity
+          title: Take payment
+          ref:
+            activity: take-payment
+        register-shipping:
+          kind: activity
+          title: Register shipping
+          ref:
+            activity: register-shipping
+        send-confirmation-email:
+          kind: activity
+          title: Send confirmation email
+          ref:
+            activity: send-confirmation-email
+      edges:
+        - from: validate-order
+          to: check-and-block-inventory
+          label: Order valid
+        - from: check-and-block-inventory
+          to: take-payment
+          label: Inventory reserved
+        - from: take-payment
+          to: register-shipping
+          label: Payment captured
+        - from: register-shipping
+          to: send-confirmation-email
+          label: Shipment registered
+activities:
+  validate-order:
+    title: Validate order
+    bindings:
+      temporal:
+        activityType: ValidateOrderActivity
+  check-and-block-inventory:
+    title: Check and block inventory
+    bindings:
+      temporal:
+        activityType: CheckAndBlockInventoryActivity
+  take-payment:
+    title: Take payment
+    bindings:
+      temporal:
+        activityType: TakePaymentActivity
+  register-shipping:
+    title: Register shipping
+    bindings:
+      temporal:
+        activityType: RegisterShippingActivity
+  send-confirmation-email:
+    title: Send confirmation email
+    bindings:
+      temporal:
+        activityType: SendConfirmationEmailActivity
 components:
   schemas:
-    RiskRequest:
+    OrderFulfilmentRequest:
       type: object
-    RiskResult:
+    OrderFulfilmentResult:
       type: object
+    PaymentAuthorisedSignal:
+      type: object
+    ChangeDeliveryAddressRequest:
+      type: object
+    OrderStatus:
+      type: string
 ```
 
----
+## 6. v1 validation rules
 
-## 21. Rubber-duck review
-
-### What this design gets right
-
-- It avoids hard-coding Temporal into the core spec.
-- It uses `bindings`, aligned with AsyncAPI thinking.
-- It separates contract, UI, catalog, and runtime telemetry.
-- It avoids producer/provider terminology.
-- It supports both single-service reference UI and central catalog use cases.
-- It supports generated documents from .NET metadata rather than hand-authored YAML.
-
-### Main risks
-
-1. **Too much topology in attributes**  
-   Complex workflow graphs should not be forced into attribute soup. Use fluent definitions or transformers.
-
-2. **Confusing declared topology with executable logic**  
-   Edges are a business/catalog view, not a complete formal model of all possible branches.
-
-3. **Overexposing internal details**  
-   A central catalog should enforce visibility and security policy.
-
-4. **Binding drift**  
-   Namespace/task queue may differ across local/test/prod. Binding metadata needs environment provenance.
-
-5. **Schema drift**  
-   DTOs must be generated using the same JSON conventions as runtime serialization wherever possible.
-
-### Open questions
-
-- Should the canonical endpoint be `/.well-known/workflow-api.json` or `/workflow-api/v1.json` with a discovery alias? Recommendation: both.
-- Should `implements.activities` be required? Recommendation: no, because some engines hide activities or use inline tasks.
-- Should runtime overlays be a separate standard later? Recommendation: yes, maybe `WorkflowAPI Observability`.
-- Should `host` be optional? Recommendation: optional for pure contract artifacts, recommended for deployed hosts.
-
+A v1 validator should check that required top-level fields exist, workflow keys are unique, each concrete workflow has exactly one `run` object, `run` is treated as the workflow entry point rather than caller metadata, topology edges reference known steps, activity references resolve, Temporal binding fields are structurally valid when present, and no obvious secrets are present.

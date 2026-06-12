@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 16. Runtime Overlay API
 
 ## Purpose
@@ -62,7 +65,7 @@ Response:
 
 ```json
 {
-  "workflowId": "risk-enrichment",
+  "workflowId": "order-fulfilment",
   "provider": "temporal",
   "timeRange": {
     "from": "2026-06-01T00:00:00Z",
@@ -100,8 +103,8 @@ Response:
 
 ```json
 {
-  "workflowId": "risk-enrichment",
-  "stepId": "enrich-dnb",
+  "workflowId": "order-fulfilment",
+  "stepId": "take-payment",
   "provider": "temporal",
   "metrics": {
     "scheduled": 2398,
@@ -130,8 +133,8 @@ Response:
 
 ```json
 {
-  "workflowId": "risk-enrichment",
-  "edgeId": "identify-company->enrich-dnb",
+  "workflowId": "order-fulfilment",
+  "edgeId": "check-and-block-inventory->take-payment",
   "provider": "temporal",
   "metrics": {
     "observedCount": 2103,
@@ -184,7 +187,7 @@ Response:
       "deepLinks": [
         {
           "label": "Open in Temporal UI",
-          "url": "https://temporal.example/namespaces/B2B.RiskService/workflows/risk-123/..."
+          "url": "https://temporal.example/namespaces/Commerce.OrderService/workflows/risk-123/..."
         }
       ]
     }

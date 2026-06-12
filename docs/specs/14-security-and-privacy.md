@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 14. WorkflowAPI Security and Privacy
 
 ## Purpose
@@ -100,7 +103,7 @@ Runtime plugins should receive credentials through normal host configuration:
       "Temporal": {
         "Enabled": true,
         "TargetHost": "temporal.company.internal:7233",
-        "Namespace": "B2B.RiskService"
+        "Namespace": "Commerce.OrderService"
       }
     }
   }
@@ -115,7 +118,7 @@ Temporal Search Attributes are powerful for business filtering but should not ca
 
 ```yaml
 searchAttributes:
-  Duns:
+  OrderId:
     type: Keyword
     classification: business-identifier
   CustomerEmail:

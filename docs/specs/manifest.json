@@ -1,0 +1,107 @@
+[
+  {
+    "file": "01-workflowapi-core-spec.md",
+    "bytes": 8469,
+    "sha256": "ef9d7cf80bd3345b1bf0c13531aa5ed6b295686304eaf7154f4d1e44de5657f2"
+  },
+  {
+    "file": "02-dotnet-implementation-design.md",
+    "bytes": 33043,
+    "sha256": "74aaad5b864cb05fae114550791bc25634a7f65b7d87b8fdd1c2bf42a7b7e543"
+  },
+  {
+    "file": "03-temporal-dotnet-binding.md",
+    "bytes": 16571,
+    "sha256": "f95e95ef0b130a45c2937f82052a6f928400d6e9dcbdeaa164029de67e109c18"
+  },
+  {
+    "file": "04-reference-ui-and-catalog.md",
+    "bytes": 13171,
+    "sha256": "70d8eddbaa3b3f25f3d0ae66e9dee6e4dc7dc4edf06a7609931a82e3e172d6bd"
+  },
+  {
+    "file": "05-agent-implementation-instructions.md",
+    "bytes": 12156,
+    "sha256": "4a4ac9c75566b6325c631eef7d07df8daa6f9e0d9ad50bf319950b22f2d62c2b"
+  },
+  {
+    "file": "06-examples.md",
+    "bytes": 4441,
+    "sha256": "c7b3b169824499a3466bfce77628df15d7941d5b55abd7d87d2b2f3673d4c6f1"
+  },
+  {
+    "file": "07-references.md",
+    "bytes": 10023,
+    "sha256": "3765a9e38aab722970a67dc88a49d0bf8caf1fbff3bcd14930e8f8cc5c33c327"
+  },
+  {
+    "file": "08-standalone-catalog-server.md",
+    "bytes": 25712,
+    "sha256": "8636a94f93a47a7437a759f7fa4b7983fd44604d9c6b3711a0834ce3ed47a693"
+  },
+  {
+    "file": "09-workflowapi-normative-document-model.md",
+    "bytes": 41227,
+    "sha256": "99ea65c7834593366cefffcd608d8ffe1e6f21efe22c7832f955a147fa4dff28"
+  },
+  {
+    "file": "10-github-organization-and-monorepo-setup.md",
+    "bytes": 16653,
+    "sha256": "8a82e83f49bc1be1a14136b217de0a3714b82b547ff8dede7a55b25a897717d6"
+  },
+  {
+    "file": "11-ui-core-and-runtime-plugin-architecture.md",
+    "bytes": 21397,
+    "sha256": "ceb0bbee9bb87104bbebd99c803d8ab07cb8972d03cf796182289a3ab9205280"
+  },
+  {
+    "file": "12-conformance-and-validation.md",
+    "bytes": 10198,
+    "sha256": "877a4add7cce2979b38c59bc4b9f80bc1bb13b3b8c5ffeb41ab71634b39c94a0"
+  },
+  {
+    "file": "13-versioning-and-compatibility.md",
+    "bytes": 7097,
+    "sha256": "b0d4c8665dc3988688fc8ca93b79feec9e98da3536bc38258edb1beacd024656"
+  },
+  {
+    "file": "14-security-and-privacy.md",
+    "bytes": 6076,
+    "sha256": "6a57d09b4538f89fbfffd8246c7bdf802cab00ffcecd9b5c4a8eeada96898397"
+  },
+  {
+    "file": "15-cli-and-msbuild-tooling.md",
+    "bytes": 5397,
+    "sha256": "b056bde08895b07ed6bced6f06b92687514d3528adf523fb3a3106ec80919c37"
+  },
+  {
+    "file": "16-runtime-overlay-api.md",
+    "bytes": 5999,
+    "sha256": "d540c127d24e7d41e94d66f3d9789f59d4a50b5322bb465ce0da4ce9c5ed0c49"
+  },
+  {
+    "file": "17-catalog-collation-rules.md",
+    "bytes": 5532,
+    "sha256": "4df9585a2690fdf158a3919e2fbd052a579804ae9c66d29e72bedd8477d4aae2"
+  },
+  {
+    "file": "18-v1-scope-and-non-goals.md",
+    "bytes": 1285,
+    "sha256": "7c0ac7efe4d21ccc0d9f548fdc7682b442d359c2eb9820b5465df6c715aea326"
+  },
+  {
+    "file": "19-agentic-delivery-and-repo-ai-tooling.md",
+    "bytes": 8813,
+    "sha256": "49c67ed6cf702d443862147b831b3160028034afb0edfc400dc04ec137a5ee5a"
+  },
+  {
+    "file": "README.md",
+    "bytes": 1235,
+    "sha256": "ccf556c0b46da3fd8284e70f882036c484eb180d4aa57d71450b44f99484b314"
+  },
+  {
+    "file": "UPDATED-FILES-SUMMARY.md",
+    "bytes": 982,
+    "sha256": "366320cf8ce3bff0f8b61d2e0847ddd8959e90aac29c120bd3135bc722014199"
+  }
+]

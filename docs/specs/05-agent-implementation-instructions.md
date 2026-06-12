@@ -1,4 +1,7 @@
-# 05 — Agent Implementation Instructions
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 05 - Agent Implementation Instructions
 
 Version: **0.1 draft**  
 Audience: agentic AI engineering team, repo bootstrap agent, specialist sub-agents  
@@ -286,7 +289,7 @@ Acceptance criteria:
 
 ## 5. Milestones
 
-### Milestone 0 — repo bootstrap
+### Milestone 0 - repo bootstrap
 
 - solution created;
 - projects added;
@@ -296,14 +299,14 @@ Acceptance criteria:
 - README;
 - basic CI running `dotnet test`.
 
-### Milestone 1 — core document model
+### Milestone 1 - core document model
 
 - model types;
 - JSON serialization;
 - minimal valid document test;
 - sample JSON fixture.
 
-### Milestone 2 — attributes and scanning
+### Milestone 2 - attributes and scanning
 
 - attributes;
 - Scrutor scanner;
@@ -311,21 +314,21 @@ Acceptance criteria:
 - XML docs basic support;
 - generated doc from sample workflow.
 
-### Milestone 3 — Temporal binding
+### Milestone 3 - Temporal binding
 
 - Temporal attribute reader;
 - `WithTemporal` options;
 - workflow/activity type inference;
 - diagnostics.
 
-### Milestone 4 — ASP.NET endpoints
+### Milestone 4 - ASP.NET endpoints
 
 - `MapWorkflowApi`;
 - well-known route;
 - named document route;
 - auth hooks.
 
-### Milestone 5 — reference UI
+### Milestone 5 - reference UI
 
 - static React UI;
 - document fetch;
@@ -333,14 +336,14 @@ Acceptance criteria:
 - simple graph;
 - raw document.
 
-### Milestone 6 — sample app
+### Milestone 6 - sample app
 
 - Temporal .NET sample;
 - Aspire AppHost;
 - docs;
 - screenshot/gif optional.
 
-### Milestone 7 — catalog preview
+### Milestone 7 - catalog preview
 
 - containerized catalog;
 - multi-source import;
@@ -414,7 +417,7 @@ Use a B2B risk enrichment workflow.
 Workflows:
 
 ```text
-RiskEnrichmentWorkflow
+OrderFulfilmentWorkflow
 MonthlyRiskRefreshWorkflow
 GenerateDnbPdfWorkflow
 ```
@@ -423,7 +426,7 @@ Activities:
 
 ```text
 IdentifyCompanyActivity
-EnrichDunsDataActivity
+TakePaymentActivity
 CalculateRiskActivity
 GenerateDnbPdfActivity
 PublishCompanyEnrichedEventActivity
@@ -432,7 +435,7 @@ PublishCompanyEnrichedEventActivity
 Signals:
 
 ```text
-CreditConsentReceived
+PaymentAuthorised
 ManualReviewCompleted
 ```
 
@@ -453,7 +456,7 @@ Search Attributes:
 
 ```text
 BusinessProcess
-Duns
+OrderId
 SalesChannel
 RiskClass
 CustomerNumber
@@ -465,11 +468,11 @@ CustomerNumber
 
 ```csharp
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(options =>
     {
         options.Namespace = "default";
-        options.TaskQueue = "risk-service";
+        options.TaskQueue = "order-service";
     });
 
 app.MapWorkflowApi();
@@ -479,18 +482,18 @@ app.MapWorkflowApiReference();
 Attributes:
 
 ```csharp
-[Workflow("RiskEnrichmentWorkflow")]
+[Workflow("OrderFulfilmentWorkflow")]
 [WorkflowApi(
-    Name = "risk-enrichment",
-    Title = "B2B Risk Enrichment",
-    Summary = "Enriches a company with D&B data and calculates risk.",
-    Owner = "Team ECR",
+    Name = "order-fulfilment",
+    Title = "Order Fulfilment",
+    Summary = "Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.",
+    Owner = "Commerce Platform Team",
     Domain = "Risk")]
-public sealed class RiskEnrichmentWorkflow
+public sealed class OrderFulfilmentWorkflow
 {
     [WorkflowRun]
     [WorkflowApiRun(Summary = "Start risk enrichment")]
-    public Task<RiskResult> RunAsync(RiskRequest request) => ...;
+    public Task<OrderFulfilmentResult> RunAsync(OrderFulfilmentRequest request) => ...;
 }
 ```
 
