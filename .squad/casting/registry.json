@@ -1,0 +1,67 @@
+{
+  "agents": {
+    "lead": {
+      "persistent_name": "Holden",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "spec-dev": {
+      "persistent_name": "Naomi",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "dotnet-dev": {
+      "persistent_name": "Amos",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "temporal-ui-dev": {
+      "persistent_name": "Alex",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "conformance": {
+      "persistent_name": "Miller",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "security": {
+      "persistent_name": "Bobbie",
+      "universe": "The Expanse",
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "scribe": {
+      "persistent_name": "Scribe",
+      "universe": null,
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "monitor": {
+      "persistent_name": "Ralph",
+      "universe": null,
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "rai": {
+      "persistent_name": "Rai",
+      "universe": null,
+      "created_at": "2026-06-13T01:12:21Z",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

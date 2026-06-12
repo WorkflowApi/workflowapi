@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 13. WorkflowAPI Versioning and Compatibility
 
 ## Purpose
@@ -171,7 +174,7 @@ deprecation:
   since: "1.4.0"
   removalAfter: "2027-01-01"
   reason: "Use RecalculateRiskV2 instead."
-  replacement: "#/workflows/risk-enrichment/updates/RecalculateRiskV2"
+  replacement: "#/workflows/order-fulfilment/updates/RecalculateRiskV2"
 ```
 
 Deprecation should not immediately make the document invalid. A strict catalog may warn when `removalAfter` has passed.

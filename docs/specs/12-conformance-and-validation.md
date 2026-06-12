@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 12. WorkflowAPI Conformance and Validation
 
 ## Purpose
@@ -127,9 +130,9 @@ Each diagnostic should include:
 {
   "code": "WFAPI_CORE_EDGE_UNKNOWN_STEP",
   "severity": "error",
-  "message": "Edge 'calculate-risk->publish-event' references unknown target step 'publish-event'.",
-  "path": "$.workflows.risk-enrichment.edges[2].target",
-  "source": "risk-worker/.well-known/workflow-api.json"
+  "message": "Edge 'register-shipping->publish-event' references unknown target step 'publish-event'.",
+  "path": "$.workflows.order-fulfilment.edges[2].target",
+  "source": "commerce-order-worker/.well-known/workflow-api.json"
 }
 ```
 

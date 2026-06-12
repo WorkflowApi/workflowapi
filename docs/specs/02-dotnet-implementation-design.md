@@ -1,4 +1,7 @@
-# 02 — .NET Implementation Design
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 02 - .NET Implementation Design
 
 Version: **0.1 draft**  
 Audience: .NET agents, package design agents, source-generation agents, test agents  
@@ -22,11 +25,11 @@ WorkflowAPI should feel similarly native:
 
 ```csharp
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(options =>
     {
-        options.Namespace = "B2B.RiskService";
-        options.TaskQueue = "risk-service";
+        options.Namespace = "Commerce.OrderService";
+        options.TaskQueue = "order-service";
     });
 
 app.MapWorkflowApi();
@@ -43,11 +46,22 @@ Recommended packages:
 WorkflowApi.Abstractions
 WorkflowApi.AspNetCore
 WorkflowApi.Temporal
+WorkflowApi.AspNetCore.Temporal
 WorkflowApi.Reference
 WorkflowApi.MSBuild
 WorkflowApi.Cli
 WorkflowApi.Catalog
 Aspire.Hosting.WorkflowApiCatalog
+```
+
+Dependency graph:
+
+```
+WorkflowApi.Abstractions
+    ↑                       ↑
+WorkflowApi.AspNetCore    WorkflowApi.Temporal
+    ↑           ↑               ↑
+WorkflowApi.Reference   WorkflowApi.AspNetCore.Temporal
 ```
 
 ### 2.1 `WorkflowApi.Abstractions`
@@ -84,8 +98,10 @@ Contains:
 
 - `AddWorkflowApi(...)`;
 - `MapWorkflowApi(...)`;
+- fluent document builder API (`AddWorkflow(...)`, `AddDefinition<T>(...)`, `Configure(...)`);
 - document provider;
 - document generation pipeline;
+- provider-based scanner (`ScanFromAssemblyOf<T>()`, `IWorkflowApiDescriptorProvider`);
 - XML documentation support;
 - Scrutor-based scanning;
 - runtime endpoint support;
@@ -99,23 +115,43 @@ May depend on:
 - `Microsoft.AspNetCore.*`;
 - `System.Text.Json`.
 
+This package is standalone complete for the **fluent authoring** use case. No Temporal dependency required.
+
 ### 2.3 `WorkflowApi.Temporal`
 
 Contains:
 
-- Temporal SDK metadata readers;
-- Temporal binding model;
-- `WithTemporal(...)` extension;
-- Temporal-specific validation;
-- optional runtime overlay adapters later.
+- Temporal SDK attribute readers (`[Workflow]`, `[WorkflowRun]`, `[WorkflowSignal]`, `[WorkflowQuery]`, `[WorkflowUpdate]`, `[Activity]`);
+- Temporal binding model (`workflowType`, `taskQueue`, `namespace`, `signalName`, `queryName`, `updateName`);
+- Temporal-specific validation rules;
+- activity type, signal, query, and update name inference from SDK attributes;
+- Nexus bridge binding model.
 
 Depends on:
 
 - `WorkflowApi.Abstractions`;
-- `Temporalio` where necessary;
-- optionally `Temporalio.Extensions.Hosting` integration in a separate subpackage if needed.
+- `Temporalio` (attribute reading only - does not require the full Temporal runtime).
 
-### 2.4 `WorkflowApi.Reference`
+**No dependency on `Microsoft.AspNetCore.*`.** A worker-only process or file-export tool can use this package without hosting a web server.
+
+### 2.4 `WorkflowApi.AspNetCore.Temporal`
+
+Contains:
+
+- `WithTemporal(IWorkflowApiBuilder, Action<TemporalWorkflowApiOptions>)` extension;
+- Temporal-aware assembly scanner (`IWorkflowApiDescriptorProvider`) that discovers `[Workflow]`-decorated types without requiring `[WorkflowApi*]` attributes;
+- wires Temporal metadata reader into the document generation pipeline.
+
+**Scope: spec production only.** This package has no runtime metrics, overlay, or history dependencies. Runtime overlay for Temporal is a separate concern addressed by `WorkflowApi.Overlay.Temporal`.
+
+Depends on:
+
+- `WorkflowApi.AspNetCore`;
+- `WorkflowApi.Temporal`.
+
+This is the package most Temporal .NET developers will install. It transitively provides everything needed to generate and serve a WorkflowAPI document.
+
+### 2.5 `WorkflowApi.Reference`
 
 Contains:
 
@@ -125,9 +161,9 @@ Contains:
 - optional EventCatalog visualiser adapter;
 - no document generation logic.
 
-This package consumes a WorkflowAPI document endpoint.
+This package consumes a WorkflowAPI document endpoint. It renders declared topology from the document. Runtime overlay (metrics, history, SLA decorations) is an independent plugin concern - the UI can fetch overlay data from a separately configured overlay provider, but this package has no overlay dependency.
 
-### 2.5 `WorkflowApi.MSBuild`
+### 2.6 `WorkflowApi.MSBuild`
 
 Contains build-time document generation support.
 
@@ -143,7 +179,7 @@ Output:
 artifacts/workflow-api/v1.workflow-api.json
 ```
 
-### 2.6 `WorkflowApi.Cli`
+### 2.7 `WorkflowApi.Cli`
 
 CLI for:
 
@@ -154,11 +190,11 @@ dotnet workflowapi diff
 dotnet workflowapi publish
 ```
 
-### 2.7 `WorkflowApi.Catalog`
+### 2.8 `WorkflowApi.Catalog`
 
 Central catalog app for many WorkflowAPI documents.
 
-### 2.8 `Aspire.Hosting.WorkflowApiCatalog`
+### 2.9 `Aspire.Hosting.WorkflowApiCatalog`
 
 Aspire hosting extension for the catalog container.
 
@@ -166,17 +202,108 @@ Aspire hosting extension for the catalog container.
 
 ## 3. Public developer experience
 
-### 3.1 Single-service reference UI
+WorkflowAPI supports two first-class spec-authoring paths. Runtime overlay (metrics, history) is a completely separate concern - see `WorkflowApi.Overlay.*` packages.
+
+| Configuration | UI renders |
+|---|---|
+| `WorkflowApi.AspNetCore` alone | Declared workflow topology map. |
+| `+ WorkflowApi.AspNetCore.Temporal` | Topology + Temporal binding details (task queue, workflow type) in detail panels. |
+
+Runtime overlay decoration (counts, durations, SLA badges, history links) requires a separately installed and configured overlay provider. It is not part of spec registration.
+
+### 3.1 Path A - Fluent document authoring (no Temporal)
+
+For teams that want to declare and display a workflow map without Temporal, or for any workflow engine that does not have an auto-generator.
 
 ```csharp
+using WorkflowApi;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .Configure(doc =>
+    {
+        doc.Info.Title = "Order Workflows";
+        doc.Info.Version = "1.0.0";
+    })
+    .AddDefinition<OrderProcessingWorkflowDefinition>();
+
+var app = builder.Build();
+
+app.MapWorkflowApi();
+app.MapWorkflowApiReference();
+
+app.Run();
+```
+
+Or inline without a definition class:
+
+```csharp
+builder.Services.AddWorkflowApi("v1")
+    .AddWorkflow("order-processing", wf =>
+    {
+        wf.Title("Order Processing")
+          .Run(run => run
+              .OperationId("startOrderProcessing")
+              .Input<OrderRequest>()
+              .Output<OrderResult>())
+          .Signal("cancel", s => s.Title("Cancel order").Input<CancelRequest>())
+          .Step("validate", s => s.Kind(StepKind.Activity).Title("Validate order"))
+          .Step("fulfil", s => s.Kind(StepKind.Activity).Title("Fulfil order"))
+          .Edge("validate", "fulfil");
+    });
+```
+
+No Temporal dependency. The UI renders the declared topology map with no metrics overlay.
+
+### 3.2 Path B - Temporal auto-generation
+
+For Temporal .NET applications that want to generate the WorkflowAPI document from SDK attributes.
+
+**Important - what Temporal attributes can and cannot provide:**
+
+Temporal SDK attributes expose the **public workflow API surface**:
+- `[Workflow]` → workflow identity and name
+- `[WorkflowRun]` → run operation with input/output types
+- `[WorkflowSignal]` → signal operations
+- `[WorkflowQuery]` → query operations
+- `[WorkflowUpdate]` → update operations
+- `[Activity]` → activity definitions
+
+Temporal SDK attributes do **not** expose the **internal step/edge topology** (the workflow map). For a full topology, supplement with:
+- `[WorkflowApiStep]` / `[WorkflowApiEdge]` attributes on the workflow class, or
+- a `WorkflowApiDefinition<T>` fluent definition.
+
+Path B without supplemental topology metadata produces a valid WorkflowAPI document with the complete public API surface - but without declared steps and edges.
+
+```csharp
+using Temporalio.Client;
+using Temporalio.Extensions.Hosting;
+using TemporalRiskService.Workflows;
+using WorkflowApi;
+using WorkflowApi.Temporal; // WorkflowApi.AspNetCore.Temporal
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddTemporalClient(options =>
+{
+    options.TargetHost = builder.Configuration["Temporal:TargetHost"] ?? "localhost:7233";
+    options.Namespace = builder.Configuration["Temporal:Namespace"] ?? "default";
+});
+
+builder.Services.AddHostedTemporalWorker("order-service")
+    .AddWorkflow<OrderFulfilmentWorkflow>()
+    .AddActivity<IdentifyCompanyActivity>()
+    .AddActivity<TakePaymentActivity>()
+    .AddActivity<CalculateRiskActivity>();
+
+builder.Services.AddWorkflowApi("v1")
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .WithTemporal(options =>
     {
         options.Namespace = builder.Configuration["Temporal:Namespace"] ?? "default";
-        options.TaskQueue = "risk-service";
+        options.TaskQueue = "order-service";
+        options.WebUrl = builder.Configuration["Temporal:WebUrl"];
     });
 
 var app = builder.Build();
@@ -187,26 +314,18 @@ app.MapWorkflowApiReference();
 app.Run();
 ```
 
-Exposes:
-
-```text
-/workflow-api/v1.json
-/.well-known/workflow-api.json
-/workflow-api/reference
-```
-
-### 3.2 Document-only mode
+### 3.3 Document-only mode (export without UI)
 
 ```csharp
 builder.Services.AddWorkflowApi("v1")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>();
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>();
 
 app.MapWorkflowApi();
 ```
 
 No UI required.
 
-### 3.3 UI-only mode
+### 3.4 UI-only mode
 
 ```csharp
 app.MapWorkflowApiReference(options =>
@@ -217,15 +336,15 @@ app.MapWorkflowApiReference(options =>
 
 This mirrors Scalar: UI consumes a document endpoint.
 
-### 3.4 Multiple named documents
+### 3.5 Multiple named documents
 
 ```csharp
 builder.Services.AddWorkflowApi("public")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .ExcludeInternalSteps();
 
 builder.Services.AddWorkflowApi("internal")
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>()
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>()
     .IncludeInternalSteps();
 ```
 
@@ -258,18 +377,19 @@ Recommended names:
 [WorkflowApiStep]
 [WorkflowApiEdge]
 [WorkflowApiDependsOn]
-[WorkflowApiSearchAttribute]
+[WorkflowApiSearchDimension]
 [WorkflowApiExample]
 [WorkflowApiDeprecated]
 [WorkflowApiTag]
 ```
 
-Temporal-specific WorkflowAPI metadata:
+Temporal-specific attributes live in `WorkflowApi.Temporal` and use the Temporal concept names directly, since they are explicitly in the Temporal package namespace:
 
 ```csharp
-[WorkflowApiTemporal]
-[WorkflowApiTemporalNexusService]
-[WorkflowApiTemporalNexusOperation]
+// In WorkflowApi.Temporal - Nexus bridge metadata
+[WorkflowApiNexusBridge]
+[WorkflowApiNexusService]
+[WorkflowApiNexusOperation]
 ```
 
 Avoid:
@@ -305,14 +425,14 @@ public sealed class WorkflowApiAttribute : Attribute
 Example:
 
 ```csharp
-[Workflow("RiskEnrichmentWorkflow")]
+[Workflow("OrderFulfilmentWorkflow")]
 [WorkflowApi(
-    Name = "risk-enrichment",
-    Title = "B2B Risk Enrichment",
-    Summary = "Enriches a company with D&B data and calculates risk.",
-    Owner = "Team ECR",
+    Name = "order-fulfilment",
+    Title = "Order Fulfilment",
+    Summary = "Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.",
+    Owner = "Commerce Platform Team",
     Domain = "Risk")]
-public sealed class RiskEnrichmentWorkflow
+public sealed class OrderFulfilmentWorkflow
 {
 }
 ```
@@ -416,27 +536,28 @@ public sealed class WorkflowApiEdgeAttribute : Attribute
 
 Use attributes for small graphs only. For non-trivial topology, use a fluent definition.
 
-### 4.8 `[WorkflowApiSearchAttribute]`
+### 4.8 `[WorkflowApiSearchDimension]`
 
-Documents intended business search attributes.
+Documents intended business search dimensions for catalog filtering and runtime search. Named `SearchDimension` rather than `SearchAttribute` to avoid the double-suffix `SearchAttributeAttribute` and to align with the generic terminology (the spec uses "search dimension"; Temporal calls these "search attributes").
 
 ```csharp
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-public sealed class WorkflowApiSearchAttributeAttribute : Attribute
+public sealed class WorkflowApiSearchDimensionAttribute : Attribute
 {
     public string Name { get; }
-    public string Type { get; set; } = "Keyword";
-    public string? Summary { get; set; }
+    public string? Description { get; set; }
     public bool ContainsPersonalData { get; set; }
 
-    public WorkflowApiSearchAttributeAttribute(string name)
+    public WorkflowApiSearchDimensionAttribute(string name)
     {
         Name = name;
     }
 }
 ```
 
-The analyzer should warn if `ContainsPersonalData = true` and the Temporal binding/documentation indicates the runtime does not encrypt search attributes.
+Runtime-specific index types (e.g. Temporal's `Keyword`, `Text`, `Int`, `DateTime`) are declared in `WorkflowApi.Temporal` and mapped through the Temporal binding, not through this generic attribute.
+
+The analyzer should warn if `ContainsPersonalData = true` and the document is exported without redaction.
 
 ---
 
@@ -447,27 +568,27 @@ Attributes are not ideal for large topology graphs.
 Provide a fluent model:
 
 ```csharp
-public sealed class RiskEnrichmentWorkflowDefinition
-    : WorkflowApiDefinition<RiskEnrichmentWorkflow>
+public sealed class OrderFulfilmentWorkflowDefinition
+    : WorkflowApiDefinition<OrderFulfilmentWorkflow>
 {
     public override void Define(IWorkflowApiBuilder builder)
     {
-        builder.Workflow("risk-enrichment")
-            .Title("B2B Risk Enrichment")
-            .Owner("Team ECR")
+        builder.Workflow("order-fulfilment")
+            .Title("Order Fulfilment")
+            .Owner("Commerce Platform Team")
             .Domain("Risk");
 
-        builder.Step("identify-company")
+        builder.Step("check-and-block-inventory")
             .Activity("IdentifyCompanyActivity")
-            .Title("Identify company")
+            .Title("Check and block inventory")
             .Sla(TimeSpan.FromSeconds(30));
 
-        builder.Step("enrich-dnb")
-            .Activity("EnrichDunsDataActivity")
-            .Title("Enrich D&B data")
+        builder.Step("take-payment")
+            .Activity("TakePaymentActivity")
+            .Title("Take payment")
             .Sla(TimeSpan.FromMinutes(2));
 
-        builder.Edge("identify-company", "enrich-dnb");
+        builder.Edge("check-and-block-inventory", "take-payment");
     }
 }
 ```
@@ -476,7 +597,7 @@ Discovery:
 
 ```csharp
 builder.Services.AddWorkflowApi()
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>();
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>();
 ```
 
 Scanner should find:
@@ -486,8 +607,11 @@ WorkflowApiDefinition<TWorkflow>
 IWorkflowApiDefinition
 [WorkflowApi]
 [WorkflowApiActivity]
-Temporal SDK [Workflow]/[Activity] attributes
 ```
+
+Temporal SDK types (`[Workflow]`, `[Activity]`) are discovered exclusively by the Temporal provider registered via `WithTemporal(...)` - not by the core scanner.
+
+Activity string references (e.g. `.Activity("IdentifyCompanyActivity")`) resolve in this order: attribute `Name` property → class name → method name. The first non-null/non-empty match wins. Duplicate resolution produces a `WFA002`-equivalent diagnostic.
 
 ---
 
@@ -501,7 +625,7 @@ Public API should hide Scrutor complexity:
 
 ```csharp
 builder.Services.AddWorkflowApi()
-    .ScanFromAssemblyOf<RiskEnrichmentWorkflow>();
+    .ScanFromAssemblyOf<OrderFulfilmentWorkflow>();
 ```
 
 Advanced API can expose scanning customization:
@@ -509,22 +633,35 @@ Advanced API can expose scanning customization:
 ```csharp
 builder.Services.AddWorkflowApi()
     .ScanAssemblies(
-        typeof(RiskEnrichmentWorkflow).Assembly,
+        typeof(OrderFulfilmentWorkflow).Assembly,
         typeof(GeneratePdfWorkflow).Assembly);
 ```
 
 ### 6.2 Discovery responsibilities
 
-Discovery should identify:
+The scanner is provider-based. Each provider contributes different parts of the document.
 
-- workflow classes;
-- workflow run methods;
-- signal/query/update methods;
-- activity classes/methods;
-- WorkflowAPI fluent definitions;
-- WorkflowAPI attributes;
-- Temporal SDK attributes if the Temporal package is referenced;
+**Core provider** (always active) discovers via WorkflowAPI's own attributes:
+
+- `WorkflowApiDefinition<T>` implementations (fluent topology);
+- `[WorkflowApi]`-decorated workflow classes → workflow identity and metadata;
+- `[WorkflowApiRun/Signal/Query/Update]`-decorated methods → operation surface;
+- `[WorkflowApiActivity]`-decorated activity classes → activity registry;
+- `[WorkflowApiStep]`/`[WorkflowApiEdge]` on workflow classes → **declared topology**;
 - XML documentation comment sources.
+
+**Temporal provider** (registered by `WithTemporal(...)`) additionally discovers via Temporal SDK attributes:
+
+- `[Workflow]`-decorated types → workflow type name and metadata enrichment;
+- `[WorkflowRun]`, `[WorkflowSignal]`, `[WorkflowQuery]`, `[WorkflowUpdate]` methods → operation surface (supplements WorkflowAPI attributes);
+- `[Activity]`-decorated types → activity type name and binding metadata;
+- `[NexusService]`-decorated interfaces → bridge service definition (service name, operations);
+- `[NexusOperation]`-decorated methods on Nexus service interfaces → bridge operation definitions;
+- `[NexusServiceHandler]`-decorated classes → links bridge service to the handler workflow.
+
+**Key boundary:** Temporal SDK attributes provide the **public operation surface** and **bridge service definitions** (`run`, `signal`, `query`, `update`, bridge services/operations). WorkflowAPI attributes (`[WorkflowApiStep]`, `[WorkflowApiEdge]`) declare the **topology** (which steps a workflow calls and in what order). Neither reads the workflow's implementation code - execution sequence must be explicitly declared.
+
+**Bridge discoverability note:** Unlike activity call steps (which are anonymous inline `ExecuteActivityAsync(...)` calls), Nexus bridge services are defined on typed interfaces with `[NexusService]`/`[NexusOperation]` attributes. This means the `bridges` map **can be auto-populated** from attribute scanning - analogous to how `[Activity]` populates the activities map. The `kind: bridge` step in a calling workflow's topology is still explicitly declared.
 
 ### 6.3 Discovery should not necessarily register services
 
@@ -544,16 +681,27 @@ The scanner builds descriptors, not runtime registrations.
 
 ### 6.4 Modes
 
-Recommended options:
+Recommended core options (runtime-neutral):
 
 ```csharp
 public sealed class WorkflowApiDiscoveryOptions
 {
     public bool IncludeWorkflowApiAttributedTypes { get; set; } = true;
-    public bool IncludeTemporalAttributedTypes { get; set; } = true;
     public bool IncludeInternalSteps { get; set; } = true;
     public bool IncludeHiddenSteps { get; set; } = false;
     public bool FailOnDuplicateOperationIds { get; set; } = true;
+}
+```
+
+Temporal-specific discovery options live in `WorkflowApi.Temporal`:
+
+```csharp
+public sealed class TemporalWorkflowApiOptions
+{
+    public string? Namespace { get; set; }
+    public string? TaskQueue { get; set; }
+    public string? WebUrl { get; set; }
+    public bool IncludeTemporalAttributedTypes { get; set; } = true;
 }
 ```
 
@@ -566,16 +714,20 @@ WorkflowAPI generation should combine metadata from multiple sources in determin
 Recommended order, lowest to highest precedence:
 
 1. convention defaults;
-2. Temporal SDK attributes;
-3. method/type signatures;
-4. XML documentation comments;
-5. WorkflowAPI attributes;
-6. fluent definitions;
+2. Temporal SDK attributes - workflow/activity type names, operation surface (when Temporal provider is active);
+3. method/type signatures - input/output types from parameter reflection;
+4. WorkflowAPI attributes - `[WorkflowApi]`, `[WorkflowApiActivity]`, `[WorkflowApiStep]`, `[WorkflowApiEdge]`, etc.;
+5. XML documentation comments - fill gaps only, do not override explicit annotations;
+6. fluent definitions - override any attribute-derived value;
 7. options/configuration;
-8. transformers;
-9. environment/catalog overlays.
+8. transformers.
 
-This mirrors the modern OpenAPI pattern: framework metadata first, customization pipeline last.
+**What each layer provides:**
+- Steps 2-3: public API surface inferred from code
+- Step 4: explicit declarations including topology (steps/edges cannot come from step 2)
+- Steps 5-8: enrichment and customisation pipeline
+
+The pipeline produces the declared spec document. Runtime overlay data is completely separate and never merged into this pipeline.
 
 ---
 
@@ -587,20 +739,20 @@ Example:
 
 ```csharp
 /// <summary>
-/// Enriches a company with D&B data and calculates risk.
+/// Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.
 /// </summary>
 /// <remarks>
 /// Used by broker, website, sales portal, and CRM lead routes.
 /// </remarks>
-[Workflow("RiskEnrichmentWorkflow")]
-[WorkflowApi(Name = "risk-enrichment", Owner = "Team ECR")]
-public sealed class RiskEnrichmentWorkflow
+[Workflow("OrderFulfilmentWorkflow")]
+[WorkflowApi(Name = "order-fulfilment", Owner = "Commerce Platform Team")]
+public sealed class OrderFulfilmentWorkflow
 {
     /// <summary>
     /// Starts risk enrichment for a company lead.
     /// </summary>
     [WorkflowRun]
-    public Task<RiskResult> RunAsync(RiskRequest request) => ...;
+    public Task<OrderFulfilmentResult> RunAsync(OrderFulfilmentRequest request) => ...;
 }
 ```
 
@@ -608,8 +760,8 @@ Generated:
 
 ```yaml
 workflows:
-  risk-enrichment:
-    summary: Enriches a company with D&B data and calculates risk.
+  order-fulfilment:
+    summary: Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.
     description: Used by broker, website, sales portal, and CRM lead routes.
     run:
       summary: Starts risk enrichment for a company lead.
@@ -796,7 +948,7 @@ app.MapWorkflowApiReference(options =>
 {
     options.RoutePrefix = "/workflow-api/reference";
     options.DocumentUrl = "/workflow-api/v1.json";
-    options.Title = "Risk Service Workflow API";
+    options.Title = "Commerce Order Workflow API";
 });
 ```
 
@@ -840,7 +992,7 @@ bindings:
   temporal:
     namespace: ${TEMPORAL_NAMESPACE}
     taskQueues:
-      - risk-service
+      - order-service
 ```
 
 ---
@@ -851,18 +1003,20 @@ Create Roslyn analyzers later.
 
 Useful diagnostics:
 
-| Code | Severity | Description |
-|---|---|---|
-| WFA001 | Warning | Workflow has `[Workflow]` but no `[WorkflowApi]` metadata. |
-| WFA002 | Error | Duplicate WorkflowAPI workflow name. |
-| WFA003 | Error | Duplicate operationId. |
-| WFA004 | Warning | Activity registered in Temporal but missing WorkflowAPI metadata. |
-| WFA005 | Warning | WorkflowAPI activity declared but not registered by worker. |
-| WFA006 | Warning | Search attribute may contain PII. |
-| WFA007 | Warning | Step references unknown activity/workflow/Nexus operation. |
-| WFA008 | Error | Invalid ISO-8601 duration in SLA/expectedDuration. |
-| WFA009 | Warning | Temporal namespace/task queue missing from binding. |
-| WFA010 | Warning | XML docs missing for public workflow operation. |
+| Code | Severity | Scope | Description |
+|---|---|---|---|
+| WFA001 | Info | Temporal provider | Workflow has `[Workflow]` but no `[WorkflowApi*]` metadata - API surface generated from SDK attributes only; no topology. |
+| WFA002 | Error | Core | Duplicate WorkflowAPI workflow name. |
+| WFA003 | Error | Core | Duplicate operationId. |
+| WFA004 | Warning | Temporal runtime integration | Activity registered in worker but missing WorkflowAPI metadata. Requires runtime registration data - only fires when worker integration is available. |
+| WFA005 | Warning | Temporal runtime integration | WorkflowAPI activity declared but not registered in any worker. Requires runtime registration data. |
+| WFA006 | Warning | Core | Search dimension declared with `ContainsPersonalData = true`. |
+| WFA007 | Warning | Core | Step references unknown activity, workflow, or bridge key. |
+| WFA008 | Error | Core | Invalid ISO-8601 duration in SLA or expectedDuration. |
+| WFA009 | Warning | Temporal binding | Temporal namespace or task queue missing from binding when runtime-capable document is expected. |
+| WFA010 | Warning | Core | XML docs missing for public workflow operation. |
+
+WFA004 and WFA005 require knowledge of Temporal worker registration - they can only fire in a context where that registration data is accessible (e.g. via a future `WorkflowApi.Temporal.Hosting` integration), not in attribute-reading-only mode.
 
 ---
 
@@ -955,40 +1109,50 @@ V1: add MSBuild/source-generator path.
 - Supports both local runtime and CI artifact generation.
 - Avoids attribute overuse by adding transformers and fluent definitions.
 - Avoids pretending Temporal has assembly scanning.
+- Completely separates spec production from runtime overlay - no mixed concerns.
 
 ### Risks
 
-1. **Duplicate registration burden**  
-   Developers may register Temporal workflows explicitly and scan WorkflowAPI separately. Mitigate with validation and future integration hooks.
+1. **Path B topology gap**  
+   Temporal SDK attributes don't expose the internal workflow graph. Mitigate by documenting clearly that topology requires supplemental `[WorkflowApiStep]`/`[WorkflowApiEdge]` attributes or a fluent definition.
 
-2. **Reflection/AOT concerns**  
+2. **"Activity" as a core concept**  
+   `[WorkflowApiActivity]`, `StepKind.Activity`, and the fluent `.Activity()` API use Temporal-conventional terminology. This is intentional and defensible - "activity" appears in WS-BPEL, Microsoft Durable Functions, and other workflow standards. `task` is the truly generic alias in the spec; `activity` is the conventional name in Temporal-family systems. The design acknowledges both.
+
+3. **Reflection/AOT concerns**  
    Runtime scanning may not be AOT-friendly. Mitigate with source generator later.
 
-3. **Schema generation complexity**  
+4. **Schema generation complexity**  
    Matching runtime serialization exactly is hard. Abstract schema generator and test heavily.
 
-4. **Metadata precedence confusion**  
+5. **Metadata precedence confusion**  
    Document precedence rules clearly and expose diagnostics.
-
-5. **Too many packages too early**  
-   MVP can combine `AspNetCore`, `Temporal`, and `Reference` temporarily, but final architecture should split them.
 
 ### MVP recommendation
 
-Build first:
+Build first (spec production):
 
 ```text
 WorkflowApi.Abstractions
 WorkflowApi.AspNetCore
 WorkflowApi.Temporal
+WorkflowApi.AspNetCore.Temporal
 WorkflowApi.Reference
 ```
 
-Later:
+Later (tooling):
 
 ```text
 WorkflowApi.MSBuild
 WorkflowApi.Cli
 WorkflowApi.Catalog
 Aspire.Hosting.WorkflowApiCatalog
+```
+
+Later (runtime overlay - separate milestone):
+
+```text
+WorkflowApi.Overlay.Abstractions
+WorkflowApi.Overlay.AspNetCore
+WorkflowApi.Overlay.Temporal
 ```

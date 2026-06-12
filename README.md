@@ -760,6 +760,37 @@ The immediate goal is to establish the monorepo, formalize the specification, bu
 
 ---
 
+## Agentic development
+
+This repository is configured for AI-assisted development with [Squad](https://github.com/bradygaster/squad-cli). The team is pre-cast and ready to use.
+
+**Install the Squad CLI:**
+
+```bash
+npm install -g @bradygaster/squad-cli@latest
+```
+
+**Start GitHub Copilot with Squad as the agent:**
+
+```bash
+copilot --agent squad
+```
+
+The team is cast from *The Expanse* and maps to the skill domains defined in [`docs/specs/19-agentic-delivery-and-repo-ai-tooling.md`](docs/specs/19-agentic-delivery-and-repo-ai-tooling.md):
+
+| Agent | Domain |
+|-------|--------|
+| Holden | Lead — architecture, ADRs, integration |
+| Naomi | Spec — DSL, JSON Schema, examples |
+| Amos | .NET — generators, attributes, MSBuild |
+| Alex | Temporal binding, Reference UI, Catalog |
+| Miller | Conformance — validator, fixtures, diagnostics |
+| Bobbie | Security — credentials, Docker, threat model |
+
+Each agent reads its corresponding skill from `.agents/skills/` before starting work. Team decisions accumulate in `.squad/decisions.md`.
+
+---
+
 ## Contributing
 
 Contributions will be welcome once the initial repository structure and governance files are in place.

@@ -1,4 +1,7 @@
-# 08 — Standalone WorkflowAPI Catalog Server
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 08 - Standalone WorkflowAPI Catalog Server
 
 Status: proposed v0.1 design  
 Audience: catalog/runtime/UI implementation sub-agents  
@@ -43,7 +46,7 @@ The standalone catalog must not require persistent storage for local/Aspire usag
 A developer runs several services locally via Aspire:
 
 ```csharp
-var riskWorker = builder.AddProject<Projects.Risk_Worker>("risk-worker");
+var riskWorker = builder.AddProject<Projects.Risk_Worker>("commerce-order-worker");
 var offerWorker = builder.AddProject<Projects.Offer_Worker>("offer-worker");
 
 builder.AddWorkflowApiCatalog("workflow-catalog")
@@ -54,7 +57,7 @@ builder.AddWorkflowApiCatalog("workflow-catalog")
 The catalog fetches:
 
 ```text
-http://risk-worker/.well-known/workflow-api.json
+http://commerce-order-worker/.well-known/workflow-api.json
 http://offer-worker/.well-known/workflow-api.json
 ```
 
@@ -66,7 +69,7 @@ A developer runs the catalog as a Docker image and passes sources via environmen
 
 ```bash
 docker run --rm -p 8080:8080 \
-  -e WorkflowApiCatalog__Sources__0__Name=risk-worker \
+  -e WorkflowApiCatalog__Sources__0__Name=commerce-order-worker \
   -e WorkflowApiCatalog__Sources__0__Uri=http://host.docker.internal:5010/.well-known/workflow-api.json \
   -e WorkflowApiCatalog__Sources__1__Name=offer-worker \
   -e WorkflowApiCatalog__Sources__1__Uri=http://host.docker.internal:5020/.well-known/workflow-api.json \
@@ -82,8 +85,8 @@ A platform team deploys the catalog into a cluster. It is configured with intern
   "WorkflowApiCatalog": {
     "Sources": [
       {
-        "Name": "risk-worker",
-        "Uri": "http://risk-worker.risk.svc.cluster.local/.well-known/workflow-api.json"
+        "Name": "commerce-order-worker",
+        "Uri": "http://commerce-order-worker.risk.svc.cluster.local/.well-known/workflow-api.json"
       },
       {
         "Name": "offer-worker",
@@ -183,8 +186,8 @@ The configuration should be intentionally simple and appsettings-friendly.
     "Title": "Local WorkflowAPI Catalog",
     "Sources": [
       {
-        "Name": "risk-worker",
-        "Uri": "http://risk-worker/.well-known/workflow-api.json"
+        "Name": "commerce-order-worker",
+        "Uri": "http://commerce-order-worker/.well-known/workflow-api.json"
       },
       {
         "Name": "offer-worker",
@@ -222,8 +225,8 @@ The configuration should be intentionally simple and appsettings-friendly.
 
 ```json
 {
-  "Name": "risk-worker",
-  "Uri": "http://risk-worker/.well-known/workflow-api.json",
+  "Name": "commerce-order-worker",
+  "Uri": "http://commerce-order-worker/.well-known/workflow-api.json",
   "Enabled": true,
   "Kind": "Http",
   "Tags": ["risk", "local"],
@@ -251,8 +254,8 @@ For Aspire and service-discovery scenarios, callers may provide only a base URI.
 
 ```json
 {
-  "Name": "risk-worker",
-  "BaseUri": "http://risk-worker",
+  "Name": "commerce-order-worker",
+  "BaseUri": "http://commerce-order-worker",
   "UseWellKnown": true
 }
 ```
@@ -260,15 +263,15 @@ For Aspire and service-discovery scenarios, callers may provide only a base URI.
 Equivalent resolved URI:
 
 ```text
-http://risk-worker/.well-known/workflow-api.json
+http://commerce-order-worker/.well-known/workflow-api.json
 ```
 
 ### 5.3 File source configuration
 
 ```json
 {
-  "Name": "risk-worker",
-  "File": "/workflowapi/sources/risk-worker.workflow-api.json"
+  "Name": "commerce-order-worker",
+  "File": "/workflowapi/sources/commerce-order-worker.workflow-api.json"
 }
 ```
 
@@ -402,8 +405,8 @@ Each source document becomes a `WorkflowApiDocument` with a source identity:
 
 ```json
 {
-  "sourceName": "risk-worker",
-  "sourceUri": "http://risk-worker/.well-known/workflow-api.json",
+  "sourceName": "commerce-order-worker",
+  "sourceUri": "http://commerce-order-worker/.well-known/workflow-api.json",
   "document": { }
 }
 ```
@@ -511,14 +514,14 @@ The catalog must only use read-only Temporal operations:
 ### 8.4 Overlay API example
 
 ```http
-GET /api/runtime/temporal/workflows/RiskEnrichmentWorkflow/metrics?connection=local&namespace=default&from=2026-06-10T00:00:00Z&to=2026-06-10T12:00:00Z
+GET /api/runtime/temporal/workflows/OrderFulfilmentWorkflow/metrics?connection=local&namespace=default&from=2026-06-10T00:00:00Z&to=2026-06-10T12:00:00Z
 ```
 
 Example response:
 
 ```json
 {
-  "workflowType": "RiskEnrichmentWorkflow",
+  "workflowType": "OrderFulfilmentWorkflow",
   "namespace": "default",
   "from": "2026-06-10T00:00:00Z",
   "to": "2026-06-10T12:00:00Z",
@@ -656,8 +659,8 @@ GET /health/ready
 Recommended environment variables:
 
 ```text
-WorkflowApiCatalog__Sources__0__Name=risk-worker
-WorkflowApiCatalog__Sources__0__Uri=http://risk-worker/.well-known/workflow-api.json
+WorkflowApiCatalog__Sources__0__Name=commerce-order-worker
+WorkflowApiCatalog__Sources__0__Uri=http://commerce-order-worker/.well-known/workflow-api.json
 WorkflowApiCatalog__Polling__IntervalSeconds=30
 WorkflowApiCatalog__Temporal__Enabled=true
 WorkflowApiCatalog__Temporal__Connections__0__Name=local
@@ -691,17 +694,17 @@ data:
       "WorkflowApiCatalog": {
         "Sources": [
           {
-            "Name": "risk-worker",
-            "Uri": "http://risk-worker.risk.svc.cluster.local/.well-known/workflow-api.json"
+            "Name": "commerce-order-worker",
+            "Uri": "http://commerce-order-worker.risk.svc.cluster.local/.well-known/workflow-api.json"
           }
         ],
         "Temporal": {
           "Enabled": true,
           "Connections": [
             {
-              "Name": "risk-prod",
+              "Name": "commerce-prod",
               "TargetHost": "temporal-frontend.temporal.svc.cluster.local:7233",
-              "Namespace": "B2B.RiskService"
+              "Namespace": "Commerce.OrderService"
             }
           ]
         }
@@ -768,8 +771,8 @@ Example generated config:
   "WorkflowApiCatalog": {
     "Sources": [
       {
-        "Name": "risk-worker",
-        "Uri": "http://risk-worker/.well-known/workflow-api.json"
+        "Name": "commerce-order-worker",
+        "Uri": "http://commerce-order-worker/.well-known/workflow-api.json"
       },
       {
         "Name": "offer-worker",
@@ -822,7 +825,7 @@ The standalone catalog may reveal internal topology. Production deployments shou
 
 ## 15. Implementation roadmap
 
-### Phase 1 — static standalone catalog
+### Phase 1 - static standalone catalog
 
 - ASP.NET Core app.
 - Configurable `WorkflowApiCatalog:Sources` list.
@@ -833,7 +836,7 @@ The standalone catalog may reveal internal topology. Production deployments shou
 - Source health page.
 - Static graph UI.
 
-### Phase 2 — Docker and Aspire
+### Phase 2 - Docker and Aspire
 
 - Publish Docker image.
 - Add health endpoints.
@@ -841,7 +844,7 @@ The standalone catalog may reveal internal topology. Production deployments shou
 - Support convention-based `.WithCatalogSource(project)`.
 - Support file/directory sources.
 
-### Phase 3 — Temporal overlay
+### Phase 3 - Temporal overlay
 
 - Add Temporal connection configuration.
 - Add workflow-level visibility metrics.
@@ -849,14 +852,14 @@ The standalone catalog may reveal internal topology. Production deployments shou
 - Add Temporal UI deep links.
 - Cache overlay responses by time range.
 
-### Phase 4 — deeper runtime indexing
+### Phase 4 - deeper runtime indexing
 
 - Optional history sampling/indexing.
 - Activity-level metrics.
 - Retry/failure details.
 - Drift detection between declared graph and observed histories.
 
-### Phase 5 — enterprise mode
+### Phase 5 - enterprise mode
 
 - Persistent store.
 - Authentication/authorization.
@@ -917,11 +920,11 @@ The standalone catalog is acceptable when:
 
 This document complements:
 
-- `01-workflowapi-core-spec.md` — document model;
-- `02-dotnet-implementation-design.md` — per-service .NET generation;
-- `03-temporal-dotnet-binding.md` — Temporal binding and runtime overlay;
-- `04-reference-ui-and-catalog.md` — UI concepts and catalog overview;
-- `05-agent-implementation-instructions.md` — implementation sequencing;
-- `06-examples.md` — concrete examples.
+- `01-workflowapi-core-spec.md` - document model;
+- `02-dotnet-implementation-design.md` - per-service .NET generation;
+- `03-temporal-dotnet-binding.md` - Temporal binding and runtime overlay;
+- `04-reference-ui-and-catalog.md` - UI concepts and catalog overview;
+- `05-agent-implementation-instructions.md` - implementation sequencing;
+- `06-examples.md` - concrete examples.
 
 This document should be treated as the primary source for the standalone catalog server/container/Aspire-extension design.

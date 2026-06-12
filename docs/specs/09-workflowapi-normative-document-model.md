@@ -1,4 +1,7 @@
-# 09 — WorkflowAPI Normative Document Model
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 09 - WorkflowAPI Normative Document Model
 
 Status: draft design supplement  
 Audience: standards agents, schema agents, .NET generator agents, catalog/server agents, UI agents  
@@ -24,9 +27,9 @@ WorkflowAPI must support:
 
 1. Generic durable workflow contracts.
 2. Workflow host descriptions.
-3. Workflow start/run operations.
+3. Workflow run entry points.
 4. Signals, queries, updates, and equivalent interaction operations.
-5. Activities, tasks, steps, timers, waits, decisions, child workflows, subflows, external calls, events, and logical groups.
+5. Activities, steps, child workflows, and cross-boundary bridge operations.
 6. Nested workflows and nested topology.
 7. Cross-boundary workflow bridges, including Temporal Nexus as the first concrete binding.
 8. Runtime bindings without making the core spec Temporal-specific.
@@ -59,12 +62,11 @@ WorkflowAPI must not:
 | Catalog source | A URL, file, directory, artifact, or service endpoint from which a WorkflowAPI document is loaded. |
 | Workflow | A durable, stateful, long-running process contract. |
 | Workflow operation | An externally visible operation on a workflow, such as run/start, signal, query, update, cancel, terminate, or describe. |
-| Step | A declared node in a workflow topology. A step may map to an activity, child workflow, bridge operation, timer, event, external system call, decision, wait, human task, or logical group. |
+| Step | A declared node in the workflow topology. A step corresponds to a durable execution primitive that has a natural attributable code artifact: `activity` (activity class), `childWorkflow` (workflow class invoked as child), or `bridge` (declared bridge operation). Topology must be explicitly declared via `[WorkflowApiStep]`/`[WorkflowApiEdge]` attributes or fluent definitions. |
 | Nested workflow | A workflow started, invoked, embedded, or represented inside another workflow's topology. |
-| Subflow | A nested reusable topology fragment that may or may not map to a runtime child workflow. |
 | Bridge | A cross-boundary durable operation connection. A bridge may cross namespace, task queue, application, cluster, workflow engine, trust, or ownership boundaries. Temporal Nexus is the first concrete bridge binding. |
 | Binding | Runtime-specific metadata for a generic WorkflowAPI concept. |
-| Topology | Declared graph of steps and edges inside a workflow or subflow. |
+| Topology | Declared graph of steps and edges inside a workflow. |
 | Observed topology | Runtime-discovered paths from workflow histories or metrics. |
 | Runtime overlay | Counts, durations, errors, retries, and status data joined onto declared WorkflowAPI entities. |
 
@@ -94,7 +96,7 @@ A WorkflowAPI document has the following top-level structure.
 
 ```yaml
 workflowApi: 0.1.0
-id: risk-service-workflows
+id: commerce-order-workflows
 info: {}
 host: {}
 workflows: {}
@@ -122,7 +124,7 @@ extensions: {}
 | `externalDocs` | Optional | Links to external documentation. |
 | `extensions` | Optional | Free-form extension object. |
 
-`workflows` is recommended but not strictly required because a document may publish only bridge definitions, shared components, or reusable subflows.
+`workflows` is recommended but not strictly required because a document may publish only bridge definitions or shared components.
 
 ## 7. Identifiers and naming rules
 
@@ -132,17 +134,17 @@ Example:
 
 ```yaml
 workflows:
-  risk-enrichment:              # stable WorkflowAPI key
-    title: B2B Risk Enrichment
+  order-fulfilment:              # stable WorkflowAPI key
+    title: Order Fulfilment
     bindings:
       temporal:
-        workflowType: RiskEnrichmentWorkflow
+        workflowType: OrderFulfilmentWorkflow
 ```
 
 Rules:
 
-1. Map keys such as `risk-enrichment` are stable WorkflowAPI identifiers.
-2. Runtime names such as `RiskEnrichmentWorkflow` belong in bindings.
+1. Map keys such as `order-fulfilment` are stable WorkflowAPI identifiers.
+2. Runtime names such as `OrderFulfilmentWorkflow` belong in bindings.
 3. Identifiers should use lowercase kebab-case where authored manually.
 4. Generators may derive identifiers from runtime names but should normalize them deterministically.
 5. Catalog merge keys must be based on stable IDs plus binding information, not display titles.
@@ -151,26 +153,28 @@ Recommended catalog keys:
 
 ```text
 document:          document.id
-host:              host.name + runtime/environment if present
-workflow:          runtime + namespace + workflow runtime type OR document.id + workflow key
-activity/task:     runtime + namespace + activity runtime type OR document.id + activity key
-bridge service:    runtime + bridge kind + bridge service name
-bridge operation:  bridge service key + operation name
+host:              host.name + namespace if present
+workflow:          namespace + workflow key OR document.id + workflow key
+activity/task:     namespace + activity key OR document.id + activity key
+bridge service:    bridge key + service name
+bridge operation:  bridge key + service name + operation name
 step:              workflow key + step key
 ```
+
+`namespace` here is a generic computing concept for a runtime isolation boundary. Different runtimes may surface this under different names - Temporal calls it `namespace`, another runtime might call it `project`, `account`, or `tenant`. The binding section of the document maps it to the runtime-specific term.
 
 ## 8. `info` object
 
 ```yaml
 info:
-  title: Risk Service Workflow API
+  title: Commerce Order Workflow API
   summary: Durable workflow contracts for the risk service.
   description: |
     Describes the workflows, activities, bridge operations, and runtime bindings
     implemented by the risk service workflow host.
   version: 1.0.0
   contact:
-    name: Team ECR
+    name: Commerce Platform Team
     url: https://backstage.example/teams/ecr
   license:
     name: Internal
@@ -191,10 +195,10 @@ info:
 
 ```yaml
 host:
-  name: risk-worker
-  title: Risk Worker
+  name: commerce-order-worker
+  title: Commerce Order Worker
   kind: application
-  owner: Team ECR
+  owner: Commerce Platform Team
   domain: Risk
   lifecycle: production
   runtime: temporal
@@ -228,9 +232,9 @@ A binding object is a map keyed by runtime or protocol name:
 ```yaml
 bindings:
   temporal:
-    namespace: B2B.RiskService
+    namespace: Commerce.OrderService
     taskQueues:
-      - risk-service
+      - order-service
 ```
 
 Bindings may appear at:
@@ -258,11 +262,11 @@ The `workflows` object is a map of workflow identifiers to workflow definitions.
 
 ```yaml
 workflows:
-  risk-enrichment:
-    title: B2B Risk Enrichment
-    summary: Enriches a company with D&B data and calculates risk.
+  order-fulfilment:
+    title: Order Fulfilment
+    summary: Fulfils an e-commerce order by reserving inventory, taking payment, registering shipping and sending confirmation email.
     version: 1.0.0
-    owner: Team ECR
+    owner: Commerce Platform Team
     domain: Risk
     lifecycle: production
     run: {}
@@ -287,7 +291,7 @@ workflows:
 | `domain` | Domain or bounded context. |
 | `lifecycle` | Lifecycle status. |
 | `visibility` | `public`, `internal`, `private`, or custom. |
-| `run` | Primary start/run operation. |
+| `run` | Primary run entry point. |
 | `signals` | Map of asynchronous signal operations. |
 | `queries` | Map of read-only query operations. |
 | `updates` | Map of validated/update operations. |
@@ -305,31 +309,33 @@ workflows:
 
 WorkflowAPI defines standard workflow interaction operation kinds.
 
-| Kind | Description | Temporal mapping |
-|---|---|---|
-| `run` | Primary start/run operation. | Workflow run/start. |
-| `signal` | Asynchronous message into a running workflow. | Workflow Signal. |
-| `query` | Read-only state query. | Workflow Query. |
-| `update` | Validated state-changing interaction. | Workflow Update. |
-| `cancel` | Request cancellation. | Cancel workflow. |
-| `terminate` | Force termination. | Terminate workflow. |
-| `describe` | Read metadata/state. | Describe workflow execution. |
-| `reset` | Reset/replay operation. | Reset workflow, if available. |
-| `custom` | Runtime-specific or domain-specific operation. | Extension/binding-specific. |
+| Kind | Description |
+|---|---|
+| `run` | Primary run entry point. |
+| `signal` | Asynchronous message into a running workflow. |
+| `query` | Read-only state query. |
+| `update` | Validated state-changing interaction. |
+| `cancel` | Request cancellation. |
+| `terminate` | Force termination. |
+| `describe` | Read metadata/state. |
+| `reset` | Reset/replay operation. |
+| `custom` | Runtime-specific or domain-specific operation. |
+
+For how these kinds map to Temporal SDK concepts, see doc 03 (Temporal .NET Binding Design).
 
 ### 12.1 Operation object
 
 ```yaml
 run:
-  operationId: startRiskEnrichment
+  operationId: runOrderFulfilment
   title: Start risk enrichment
   summary: Starts enrichment for a company or lead.
   input:
     schema:
-      $ref: '#/components/schemas/RiskEnrichmentRequest'
+      $ref: '#/components/schemas/OrderFulfilmentRequest'
   output:
     schema:
-      $ref: '#/components/schemas/RiskEnrichmentResult'
+      $ref: '#/components/schemas/OrderFulfilmentResult'
   examples:
     - $ref: '#/components/examples/StartRiskEnrichment'
   policies:
@@ -337,7 +343,7 @@ run:
       strategy: callerSuppliedId
   bindings:
     temporal:
-      workflowType: RiskEnrichmentWorkflow
+      workflowType: OrderFulfilmentWorkflow
 ```
 
 | Field | Description |
@@ -358,15 +364,15 @@ run:
 
 ```yaml
 signals:
-  credit-consent-received:
+  payment-authorised:
     operationId: creditConsentReceived
     title: Credit consent received
     input:
       schema:
-        $ref: '#/components/schemas/CreditConsentSignal'
+        $ref: '#/components/schemas/PaymentAuthorisedSignal'
     bindings:
       temporal:
-        signalName: CreditConsentReceived
+        signalName: PaymentAuthorised
 ```
 
 Signals should be treated as externally meaningful contract operations, not merely implementation details.
@@ -376,11 +382,11 @@ Signals should be treated as externally meaningful contract operations, not mere
 ```yaml
 queries:
   get-status:
-    operationId: getRiskWorkflowStatus
+    operationId: getOrderWorkflowStatus
     title: Get status
     output:
       schema:
-        $ref: '#/components/schemas/RiskWorkflowStatus'
+        $ref: '#/components/schemas/OrderWorkflowStatus'
     bindings:
       temporal:
         queryName: GetStatus
@@ -392,15 +398,15 @@ Queries should be side-effect-free from the perspective of the workflow contract
 
 ```yaml
 updates:
-  recalculate-risk:
+  reregister-shipping:
     operationId: recalculateRisk
-    title: Recalculate risk
+    title: Change delivery address
     input:
       schema:
-        $ref: '#/components/schemas/RecalculateRiskRequest'
+        $ref: '#/components/schemas/RecalculateOrderFulfilmentRequest'
     output:
       schema:
-        $ref: '#/components/schemas/RiskEnrichmentResult'
+        $ref: '#/components/schemas/OrderFulfilmentResult'
     bindings:
       temporal:
         updateName: RecalculateRisk
@@ -410,14 +416,21 @@ Updates represent validated interactions that may mutate workflow state and retu
 
 ## 13. Topology
 
-A workflow topology declares intended structure.
+A workflow topology declares intended structure. Tools must distinguish three modes:
+
+| Mode | Source | Description |
+|---|---|---|
+| **Declared topology** | WorkflowAPI document | Steps and edges as specified in the document. |
+| **Observed topology** | Runtime execution histories | Paths actually taken at runtime, from event histories or traces. |
+| **Operational overlay** | Runtime metrics provider | Counts, durations, failures, SLA breaches. |
+
+Topology is always **explicitly declared** using WorkflowAPI's own `[WorkflowApiStep]`/`[WorkflowApiEdge]` attributes on the workflow class, or via fluent definitions. It cannot be read from the workflow's implementation code. Temporal SDK attributes provide the public operation surface; WorkflowAPI attributes declare the topology.
 
 ```yaml
 topology:
   entry: receive-lead
   steps: {}
   edges: []
-  subflows: {}
 ```
 
 | Field | Description |
@@ -425,57 +438,45 @@ topology:
 | `entry` | Optional starting step key. |
 | `steps` | Map of step identifiers to step definitions. |
 | `edges` | Directed relationships between steps. |
-| `subflows` | Reusable or nested topology fragments. |
 | `layout` | Optional visual layout hints. |
-| `observability` | Optional declared runtime metric mappings. |
 
-Topology is declared. Runtime histories may reveal observed topology. Catalogs should be able to show declared-only, observed-only, and overlay modes.
+Catalogs should be able to show declared-only, observed-only, and overlay-decorated views.
 
 ## 14. Step model
 
 ```yaml
 steps:
-  enrich-dnb:
+  take-payment:
     kind: activity
-    title: Enrich D&B data
-    summary: Calls D&B and stores the enrichment result.
+    title: Take payment
+    summary: Calls payment provider and stores the enrichment result.
     group: External enrichment
     input:
       schema:
-        $ref: '#/components/schemas/DnbEnrichmentRequest'
+        $ref: '#/components/schemas/PaymentRequest'
     output:
       schema:
-        $ref: '#/components/schemas/DnbEnrichmentResult'
+        $ref: '#/components/schemas/PaymentResult'
     policies:
       timeout:
         scheduleToClose: PT2M
     bindings:
       temporal:
-        activityType: EnrichDunsDataActivity
+        activityType: TakePaymentActivity
 ```
 
 ### 14.1 Standard step kinds
 
-| Kind | Description |
-|---|---|
-| `activity` | Unit of work executed by a worker. |
-| `task` | Generic task step. |
-| `childWorkflow` | Starts/invokes another workflow as a child or equivalent. |
-| `subflow` | Inline or reusable nested topology fragment. |
-| `bridgeOperation` | Calls a cross-boundary bridge operation. |
-| `timer` | Timer, sleep, schedule, timeout, or delay. |
-| `wait` | Waits for condition, signal, event, or external state. |
-| `signal` | Emits or receives a signal-like operation. |
-| `query` | Performs a query-like operation. |
-| `update` | Performs an update-like operation. |
-| `event` | Publishes or consumes an event/message. |
-| `externalCall` | Calls an external HTTP/gRPC/SOAP/database/service dependency. |
-| `humanTask` | Human approval, review, or manual work. |
-| `decision` | Branching or choice step. |
-| `parallel` | Parallel block/group. |
-| `group` | Logical grouping with nested steps. |
-| `compensation` | Compensation/saga rollback step. |
-| `custom` | Custom extension kind. |
+Only step kinds with a natural, attributable code artifact are included.
+
+| Kind | Description | Code artifact |
+|---|---|---|
+| `activity` | Executes an activity worker unit. | Activity class decorated with `[WorkflowApiActivity]`. |
+| `childWorkflow` | Starts another workflow as a child. Runs independently; can be awaited or detached. | Workflow class decorated with `[WorkflowApi]`. |
+| `bridge` | Calls a cross-boundary bridge operation (e.g. Temporal Nexus). | Declared in the `bridges` map. |
+| `custom` | Custom or runtime-specific step. Escape hatch for extension. | Developer-defined. |
+
+`timer` (`Workflow.DelayAsync`) and `subflow` are not included - they have no natural code artifact to attach a WorkflowAPI attribute to. `signal`, `query`, and `update` are operation kinds (what callers do to the workflow), not step kinds.
 
 ### 14.2 Step fields
 
@@ -490,26 +491,19 @@ steps:
 | `output` | Output payload schema. |
 | `errors` | Error outcomes. |
 | `policies` | Retry, timeout, SLA, compensation, idempotency. |
-| `ref` | Reference to another workflow, subflow, bridge operation, component, or external system. |
-| `steps` | Nested step map for group/parallel/subflow steps. |
-| `edges` | Nested edges for group/parallel/subflow steps. |
+| `ref` | Cross-entity reference. Required for `childWorkflow` (`ref.workflow`) and `bridge` (`ref.bridge`, `ref.service`, `ref.operation`). Optional for `activity` - if step key matches a key in the top-level `activities` map the tooling links them by convention. |
 | `bindings` | Runtime-specific metadata. |
 | `extensions` | Extension object. |
 
-## 15. Nested workflows and subflows
+## 15. Nested workflows
 
-WorkflowAPI must represent nested workflows in two ways:
-
-1. **Runtime child workflow** — a workflow starts or invokes another workflow through the runtime.
-2. **Logical subflow** — a reusable or nested visual/process fragment that may not map to a runtime child workflow.
-
-### 15.1 Child workflow step
+Child workflows start another named workflow through the runtime. The child runs independently and can be awaited or allowed to run detached.
 
 ```yaml
 steps:
   generate-document:
     kind: childWorkflow
-    title: Generate D&B PDF
+    title: Generate payment provider PDF
     ref:
       workflow: generate-dnb-pdf
       document: document-service-workflows
@@ -533,57 +527,6 @@ Child workflow fields:
 | `invocation.result` | `required`, `ignored`, `optional`. |
 | `bindings` | Runtime-specific child workflow metadata. |
 
-### 15.2 Inline subflow
-
-```yaml
-steps:
-  risk-decisioning:
-    kind: subflow
-    title: Risk decisioning
-    topology:
-      entry: calculate-risk
-      steps:
-        calculate-risk:
-          kind: activity
-          title: Calculate risk
-        persist-risk:
-          kind: activity
-          title: Persist risk summary
-      edges:
-        - from: calculate-risk
-          to: persist-risk
-```
-
-Use inline subflows for visual grouping and reusable business-process fragments where no runtime child workflow exists.
-
-### 15.3 Reusable subflow component
-
-```yaml
-components:
-  subflows:
-    dnb-enrichment:
-      title: D&B enrichment subflow
-      topology:
-        entry: cleanse-match
-        steps:
-          cleanse-match:
-            kind: activity
-          enrich-duns:
-            kind: activity
-        edges:
-          - from: cleanse-match
-            to: enrich-duns
-
-workflows:
-  risk-enrichment:
-    topology:
-      steps:
-        dnb:
-          kind: subflow
-          ref:
-            subflow: '#/components/subflows/dnb-enrichment'
-```
-
 ## 16. Edges
 
 Edges describe intended topology relationships.
@@ -591,10 +534,10 @@ Edges describe intended topology relationships.
 ```yaml
 edges:
   - id: identify-to-enrich
-    from: identify-company
-    to: enrich-dnb
+    from: check-and-block-inventory
+    to: take-payment
     relation: next
-    condition: Company identified
+    condition: Inventory blocked
 ```
 
 ### 16.1 Edge fields
@@ -638,13 +581,13 @@ dependsOn:
   workflows:
     - workflow: generate-dnb-pdf
       relation: childWorkflow
-  bridgeOperations:
+  bridges:
     - bridge: document-generation
       service: DocumentService
       operation: GeneratePdf
   externalSystems:
     - id: dnb
-      name: D&B
+      name: payment provider
       kind: external-api
   events:
     - channel: risk.company.enriched.v1
@@ -677,23 +620,23 @@ bridges:
     summary: Exposes risk operations across workflow namespace boundaries.
     services:
       RiskService:
-        title: Risk Service
+        title: Order Service
         operations:
           CalculateRisk:
-            title: Calculate risk
+            title: Register shipping
             input:
               schema:
-                $ref: '#/components/schemas/CalculateRiskRequest'
+                $ref: '#/components/schemas/CalculateOrderFulfilmentRequest'
             output:
               schema:
-                $ref: '#/components/schemas/CalculateRiskResult'
+                $ref: '#/components/schemas/CalculateOrderFulfilmentResult'
             handledBy:
-              workflow: risk-enrichment
+              workflow: order-fulfilment
     bindings:
       temporal:
-        nexusEndpoint: risk-prod
-        targetNamespace: B2B.RiskService
-        targetTaskQueue: risk-service
+        nexusEndpoint: commerce-prod
+        targetNamespace: Commerce.OrderService
+        targetTaskQueue: order-service
 ```
 
 ### 18.2 Bridge fields
@@ -736,16 +679,16 @@ Bridge operations are externally meaningful durable operations. They are not mer
 
 ```yaml
 steps:
-  calculate-risk:
-    kind: bridgeOperation
-    title: Calculate risk via Risk Service
+  register-shipping:
+    kind: bridge
+    title: Register shipping via Order Service
     ref:
       bridge: risk-bridge
       service: RiskService
       operation: CalculateRisk
     bindings:
       temporal:
-        nexusEndpoint: risk-prod
+        nexusEndpoint: commerce-prod
         nexusService: RiskService
         nexusOperation: CalculateRisk
 ```
@@ -768,12 +711,72 @@ Temporal-specific data must stay under the `temporal` binding.
 ```yaml
 bindings:
   temporal:
-    nexusEndpoint: risk-prod
+    nexusEndpoint: commerce-prod
     nexusService: RiskService
     nexusOperation: CalculateRisk
-    targetNamespace: B2B.RiskService
-    targetTaskQueue: risk-service
+    targetNamespace: Commerce.OrderService
+    targetTaskQueue: order-service
 ```
+
+## 18a. Activities
+
+The optional top-level `activities` map declares reusable activity definitions that may be referenced from workflow topology steps via `ref.activity`.
+
+Activities represent units of work executed by a worker - often side-effecting operations such as external API calls, data transformations, or database writes.
+
+```yaml
+activities:
+  take-payment:
+    title: Take payment
+    summary: Calls payment provider and stores the enrichment result.
+    group: External enrichment
+    visibility: internal
+    input:
+      schema:
+        $ref: '#/components/schemas/PaymentRequest'
+    output:
+      schema:
+        $ref: '#/components/schemas/PaymentResult'
+    expectedDuration: PT30S
+    sla: PT2M
+    criticality: high
+    bindings:
+      temporal:
+        activityType: TakePaymentActivity
+        taskQueue: order-service
+```
+
+### 18a.1 Activity fields
+
+| Field | Description |
+|---|---|
+| `title` | Human-readable title. |
+| `summary` | Short summary. |
+| `description` | Longer markdown-capable description. |
+| `group` | Visual/logical grouping label. |
+| `visibility` | `public`, `internal`, or `hidden`. |
+| `input` | Input payload schema. |
+| `output` | Output payload schema. |
+| `expectedDuration` | ISO 8601 duration for expected runtime. |
+| `sla` | ISO 8601 duration SLA. |
+| `criticality` | `critical`, `high`, `medium`, `low`. |
+| `policies` | Retry, timeout, and SLA policies. |
+| `bindings` | Runtime-specific activity binding (e.g. Temporal `activityType`). |
+| `extensions` | Extension object. |
+
+### 18a.2 Referencing activities from steps
+
+```yaml
+topology:
+  steps:
+    take-payment:
+      kind: activity
+      title: Take payment
+      ref:
+        activity: take-payment
+```
+
+If an activity is used in only one workflow and has no reuse value, its metadata may be declared inline on the step rather than in the top-level `activities` map.
 
 ## 19. Components
 
@@ -783,7 +786,6 @@ Components hold reusable definitions.
 components:
   schemas: {}
   examples: {}
-  subflows: {}
   policies: {}
   securitySchemes: {}
   owners: {}
@@ -799,12 +801,12 @@ WorkflowAPI should use JSON Schema-compatible schema definitions.
 ```yaml
 components:
   schemas:
-    RiskEnrichmentRequest:
+    OrderFulfilmentRequest:
       type: object
       required:
-        - duns
+        - orderId
       properties:
-        duns:
+        orderId:
           type: string
         salesChannel:
           type: string
@@ -815,7 +817,7 @@ Schema references use JSON Pointer-style `$ref` values.
 ```yaml
 input:
   schema:
-    $ref: '#/components/schemas/RiskEnrichmentRequest'
+    $ref: '#/components/schemas/OrderFulfilmentRequest'
 ```
 
 ### 19.2 Examples
@@ -826,7 +828,7 @@ components:
     StartRiskEnrichment:
       summary: Broker lead risk enrichment
       value:
-        duns: '315000000'
+        orderId: '315000000'
         salesChannel: Broker
 ```
 
@@ -883,29 +885,19 @@ policies:
 
 ## 21. Search attributes and dimensions
 
-WorkflowAPI should declare business dimensions used for runtime filtering and catalog overlays.
+WorkflowAPI should declare business search dimensions used for filtering and catalog overlays. In the generic spec, these are named and described without runtime-specific index types:
 
 ```yaml
 searchAttributes:
-  BusinessProcess:
-    type: Keyword
-    summary: Business process name.
-  SalesChannel:
-    type: Keyword
-  RiskClass:
-    type: Keyword
+  - name: BusinessProcess
+    description: Business process name for catalog search.
+  - name: SalesChannel
+    description: Originating sales channel.
+  - name: RiskClass
+    description: Computed risk classification.
 ```
 
-For generic WorkflowAPI, these are called `dimensions` when not tied to Temporal:
-
-```yaml
-dimensions:
-  salesChannel:
-    type: string
-    source: workflow-input
-```
-
-Temporal binding may map them to Search Attributes:
+Runtime-specific index types (such as Temporal's `Keyword`, `Text`, `Int`, `DateTime`) belong in the runtime binding:
 
 ```yaml
 bindings:
@@ -915,7 +907,7 @@ bindings:
       RiskClass: Keyword
 ```
 
-Do not place sensitive personal data in dimensions/search attributes unless the deployment and runtime explicitly support appropriate protection.
+Do not place sensitive personal data in search dimensions unless the deployment and runtime explicitly support appropriate protection.
 
 ## 22. Events and AsyncAPI references
 
@@ -932,7 +924,7 @@ emits:
 ```yaml
 consumes:
   events:
-    - id: credit-consent-received
+    - id: payment-authorised
       channel: customer.credit-consent.received.v1
 ```
 
@@ -950,7 +942,7 @@ components:
       description: Entra ID OAuth2 access token.
 
 workflows:
-  risk-enrichment:
+  order-fulfilment:
     security:
       - oauth2:
           scopes:
@@ -1002,16 +994,16 @@ Example:
 ```yaml
 bindings:
   temporal:
-    namespace: B2B.RiskService
+    namespace: Commerce.OrderService
     taskQueues:
-      - risk-service
+      - order-service
 
 workflows:
-  risk-enrichment:
+  order-fulfilment:
     bindings:
       temporal:
-        workflowType: RiskEnrichmentWorkflow
-        taskQueue: risk-service
+        workflowType: OrderFulfilmentWorkflow
+        taskQueue: order-service
 ```
 
 ## 26. Catalog collation rules
@@ -1053,8 +1045,8 @@ Overlay is additive. It must not rewrite source documents.
 Examples:
 
 ```text
-Source document says: risk-enrichment has step enrich-dnb.
-Runtime overlay says: enrich-dnb had 2,431 executions, 12 failures, p95 8.4s.
+Source document says: order-fulfilment has step take-payment.
+Runtime overlay says: take-payment had 2,431 executions, 12 failures, p95 8.4s.
 Catalog graph shows both.
 ```
 
@@ -1079,7 +1071,7 @@ runtimeOverlay:
     from: 2026-06-01T00:00:00Z
     to: 2026-06-10T00:00:00Z
   workflows:
-    risk-enrichment:
+    order-fulfilment:
       started: 2431
       completed: 2353
       failed: 12
@@ -1087,7 +1079,7 @@ runtimeOverlay:
       avgDurationMs: 1840
       p95DurationMs: 8400
   steps:
-    risk-enrichment/enrich-dnb:
+    order-fulfilment/take-payment:
       scheduled: 2398
       completed: 2353
       failed: 12
@@ -1114,11 +1106,11 @@ WorkflowAPI validators should support levels.
 ```yaml
 workflowApi: 0.1.0
 info:
-  title: Risk Workflows
+  title: Order Workflows
   version: 1.0.0
 workflows:
-  risk-enrichment:
-    title: B2B Risk Enrichment
+  order-fulfilment:
+    title: Order Fulfilment
     run:
       input:
         schema:
@@ -1132,85 +1124,85 @@ workflows:
 
 ```yaml
 workflowApi: 0.1.0
-id: risk-service-workflows
+id: commerce-order-workflows
 info:
-  title: Risk Service Workflow API
-  summary: Durable workflow contracts for B2B risk enrichment.
+  title: Commerce Order Workflow API
+  summary: Durable workflow contracts for e-commerce order fulfilment.
   version: 1.0.0
 host:
-  name: risk-worker
+  name: commerce-order-worker
   kind: worker
-  owner: Team ECR
+  owner: Commerce Platform Team
   domain: Risk
   runtime: temporal
 bindings:
   temporal:
-    namespace: B2B.RiskService
+    namespace: Commerce.OrderService
     taskQueues:
-      - risk-service
+      - order-service
 workflows:
-  risk-enrichment:
-    title: B2B Risk Enrichment
+  order-fulfilment:
+    title: Order Fulfilment
     summary: Enriches a company and calculates risk.
     run:
-      operationId: startRiskEnrichment
+      operationId: runOrderFulfilment
       input:
         schema:
-          $ref: '#/components/schemas/RiskEnrichmentRequest'
+          $ref: '#/components/schemas/OrderFulfilmentRequest'
       output:
         schema:
-          $ref: '#/components/schemas/RiskEnrichmentResult'
+          $ref: '#/components/schemas/OrderFulfilmentResult'
       bindings:
         temporal:
-          workflowType: RiskEnrichmentWorkflow
+          workflowType: OrderFulfilmentWorkflow
     signals:
-      credit-consent-received:
+      payment-authorised:
         title: Credit consent received
         input:
           schema:
-            $ref: '#/components/schemas/CreditConsentSignal'
+            $ref: '#/components/schemas/PaymentAuthorisedSignal'
         bindings:
           temporal:
-            signalName: CreditConsentReceived
+            signalName: PaymentAuthorised
     queries:
       get-status:
         title: Get status
         output:
           schema:
-            $ref: '#/components/schemas/RiskWorkflowStatus'
+            $ref: '#/components/schemas/OrderWorkflowStatus'
         bindings:
           temporal:
             queryName: GetStatus
     updates:
-      recalculate-risk:
-        title: Recalculate risk
+      reregister-shipping:
+        title: Change delivery address
         input:
           schema:
-            $ref: '#/components/schemas/RecalculateRiskRequest'
+            $ref: '#/components/schemas/RecalculateOrderFulfilmentRequest'
         output:
           schema:
-            $ref: '#/components/schemas/RiskEnrichmentResult'
+            $ref: '#/components/schemas/OrderFulfilmentResult'
         bindings:
           temporal:
             updateName: RecalculateRisk
     topology:
-      entry: identify-company
+      entry: check-and-block-inventory
       steps:
-        identify-company:
+        check-and-block-inventory:
           kind: activity
-          title: Identify company
+          title: Check and block inventory
           bindings:
             temporal:
               activityType: IdentifyCompanyActivity
-        enrich-dnb:
+        take-payment:
           kind: activity
-          title: Enrich D&B data
+          title: Take payment
           bindings:
             temporal:
-              activityType: EnrichDunsDataActivity
+              activityType: TakePaymentActivity
         generate-document:
           kind: childWorkflow
-          title: Generate D&B PDF
+          title: Generate payment provider PDF
           ref:
             workflow: generate-dnb-pdf
           invocation:
@@ -1219,20 +1211,20 @@ workflows:
           bindings:
             temporal:
               childWorkflowType: GenerateDnbPdfWorkflow
-        calculate-risk-via-bridge:
-          kind: bridgeOperation
-          title: Calculate risk through Risk bridge
+        register-shipping-via-bridge:
+          kind: bridge
+          title: Register shipping through Risk bridge
           ref:
             bridge: risk-bridge
             service: RiskService
             operation: CalculateRisk
       edges:
-        - from: identify-company
-          to: enrich-dnb
-        - from: enrich-dnb
+        - from: check-and-block-inventory
+          to: take-payment
+        - from: take-payment
           to: generate-document
-        - from: enrich-dnb
-          to: calculate-risk-via-bridge
+        - from: take-payment
+          to: register-shipping-via-bridge
 bridges:
   risk-bridge:
     kind: durableOperationBridge
@@ -1243,35 +1235,35 @@ bridges:
           CalculateRisk:
             input:
               schema:
-                $ref: '#/components/schemas/CalculateRiskRequest'
+                $ref: '#/components/schemas/CalculateOrderFulfilmentRequest'
             output:
               schema:
-                $ref: '#/components/schemas/CalculateRiskResult'
+                $ref: '#/components/schemas/CalculateOrderFulfilmentResult'
             handledBy:
-              workflow: risk-enrichment
+              workflow: order-fulfilment
     bindings:
       temporal:
-        nexusEndpoint: risk-prod
-        targetNamespace: B2B.RiskService
-        targetTaskQueue: risk-service
+        nexusEndpoint: commerce-prod
+        targetNamespace: Commerce.OrderService
+        targetTaskQueue: order-service
 components:
   schemas:
-    RiskEnrichmentRequest:
+    OrderFulfilmentRequest:
       type: object
       properties:
-        duns:
+        orderId:
           type: string
-    RiskEnrichmentResult:
+    OrderFulfilmentResult:
       type: object
-    CreditConsentSignal:
+    PaymentAuthorisedSignal:
       type: object
-    RiskWorkflowStatus:
+    OrderWorkflowStatus:
       type: object
-    RecalculateRiskRequest:
+    RecalculateOrderFulfilmentRequest:
       type: object
-    CalculateRiskRequest:
+    CalculateOrderFulfilmentRequest:
       type: object
-    CalculateRiskResult:
+    CalculateOrderFulfilmentResult:
       type: object
 ```
 

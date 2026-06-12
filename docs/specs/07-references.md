@@ -1,4 +1,7 @@
-# 07 — References
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
+# 07 - References
 
 Accessed: 2026-06-10
 
@@ -8,7 +11,7 @@ This file lists sources used to ground the WorkflowAPI design. The design intent
 
 ## Microsoft ASP.NET Core OpenAPI / .NET 10
 
-1. **Generate OpenAPI documents — ASP.NET Core**  
+1. **Generate OpenAPI documents - ASP.NET Core**  
    https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi?view=aspnetcore-10.0  
    Key design lesson: ASP.NET Core generates OpenAPI documents only; interactive UIs such as Scalar/Swagger UI are separate.
 
@@ -64,7 +67,7 @@ This file lists sources used to ground the WorkflowAPI design. The design intent
     https://www.asyncapi.com/docs/reference/bindings  
     Key design lesson: protocol-specific details can be attached to servers, channels, operations, or messages.
 
-13. **Adding bindings — AsyncAPI**  
+13. **Adding bindings - AsyncAPI**  
     https://www.asyncapi.com/docs/concepts/asyncapi-document/adding-bindings  
     Key design lesson: bindings provide standard protocol-specific details without polluting the generic model.
 

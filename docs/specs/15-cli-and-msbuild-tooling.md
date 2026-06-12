@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 15. WorkflowAPI CLI and MSBuild Tooling
 
 ## Purpose
@@ -107,7 +110,7 @@ Publish a document or bundle to a catalog server.
 ```bash
 workflowapi publish ./artifacts/workflow-api.json \
   --catalog https://workflowapi.company.internal \
-  --source risk-worker \
+  --source commerce-order-worker \
   --environment prod
 ```
 

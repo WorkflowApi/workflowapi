@@ -1,3 +1,6 @@
+> **v1 tightened scope note**  
+> This file is retained as a post-v1 design note unless a section explicitly says otherwise. WorkflowAPI v1 is limited to the compact durable execution workflow API specification, .NET generation from workflow attributes or fluent definitions, Temporal static binding metadata, and static workflow display. Runtime overlays, catalogue collation, source polling, workflow control-plane actions, BPMN-style modelling and runtime observability are outside v1 scope.
+
 # 17. Catalog Collation and Graph Merge Rules
 
 ## Purpose
@@ -13,8 +16,8 @@ A catalog source is configured explicitly or discovered by convention.
   "WorkflowApiCatalog": {
     "Sources": [
       {
-        "Name": "risk-worker",
-        "Uri": "http://risk-worker/.well-known/workflow-api.json"
+        "Name": "commerce-order-worker",
+        "Uri": "http://commerce-order-worker/.well-known/workflow-api.json"
       },
       {
         "Name": "offer-worker",
@@ -165,9 +168,9 @@ Sources should specify environment:
 
 ```json
 {
-  "Name": "risk-worker-prod",
+  "Name": "commerce-order-worker-prod",
   "Environment": "prod",
-  "Uri": "https://risk-worker/.well-known/workflow-api.json"
+  "Uri": "https://commerce-order-worker/.well-known/workflow-api.json"
 }
 ```
 
