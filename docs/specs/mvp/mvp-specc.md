@@ -669,10 +669,10 @@ This is not the final WorkflowAPI reference UI. It does not implement catalogue 
 
 ## Run
 
-```bash
+~~~bash
 pnpm install
 pnpm dev
-````
+~~~
 
 ## Test
 
