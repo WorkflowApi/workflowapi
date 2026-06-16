@@ -10,7 +10,7 @@ This is a Hackweek prototype, not the final WorkflowAPI reference UI.
 
 ## 2. Context
 
-WorkflowAPI is intended to describe durable workflow APIs, sitting conceptually beside OpenAPI and AsyncAPI. Existing internal design material separates the WorkflowAPI document model, reference UI, central catalogue, runtime overlays, and conformance tooling. [[A more eff...given tim | Viva Engage]](https://engage.cloud.microsoft/main/threads/eyJfdHlwZSI6IlRocmVhZCIsImlkIjoiMzM4Mzk3Nzk5OTc2OTYwMCJ9)
+WorkflowAPI is intended to describe durable workflow APIs, sitting conceptually beside OpenAPI and AsyncAPI. Existing internal design material separates the WorkflowAPI document model, reference UI, central catalogue, runtime overlays, and conformance tooling.
 
 For this MVP, ignore the full product architecture. The goal is only to take one YAML example and render it as a graph.
 
