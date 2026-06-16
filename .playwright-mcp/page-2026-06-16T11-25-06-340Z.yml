@@ -1,0 +1,301 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - heading "WorkflowAPI Visualiser MVP" [level=1] [ref=e5]
+  - main [ref=e6]:
+    - application [ref=e9]:
+      - generic [ref=e11]:
+        - generic:
+          - generic:
+            - img:
+              - group "Edge from document:workflowapi-document to host:risk-service"
+            - img:
+              - group "Edge from host:risk-service to workflow:RiskEnrichmentWorkflow" [ref=e12] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow to workflow:RiskEnrichmentWorkflow:operation:run" [ref=e15] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow to workflow:RiskEnrichmentWorkflow:operation:signal:Cancel" [ref=e18] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow to workflow:RiskEnrichmentWorkflow:operation:signal:ManualReviewBypassed"
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow to workflow:RiskEnrichmentWorkflow:operation:query:GetStatus" [ref=e21] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow to workflow:RiskEnrichmentWorkflow:operation:update:RefreshRiskModel" [ref=e24] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:enrich-dnb-data to bridge:Dnb.EnrichCompany" [ref=e27] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:document-pdf to bridge:DocumentService.GeneratePdf" [ref=e30] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:start to workflow:RiskEnrichmentWorkflow:step:identify-company"
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:identify-company to workflow:RiskEnrichmentWorkflow:step:enrich-dnb-data"
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:enrich-dnb-data to workflow:RiskEnrichmentWorkflow:step:calculate-risk" [ref=e33] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:calculate-risk to workflow:RiskEnrichmentWorkflow:step:document-pdf"
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:document-pdf to workflow:RiskEnrichmentWorkflow:step:publish-result" [ref=e36] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:RiskEnrichmentWorkflow:step:publish-result to workflow:RiskEnrichmentWorkflow:step:end"
+            - img:
+              - group "Edge from host:risk-service to workflow:CalculateRiskWorkflow"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow to workflow:CalculateRiskWorkflow:operation:run"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow:step:start to workflow:CalculateRiskWorkflow:step:fetch-signals"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow:step:fetch-signals to workflow:CalculateRiskWorkflow:step:score-engine"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow:step:score-engine to workflow:CalculateRiskWorkflow:step:external-checks"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow:step:external-checks to workflow:CalculateRiskWorkflow:step:aggregate"
+            - img:
+              - group "Edge from workflow:CalculateRiskWorkflow:step:aggregate to workflow:CalculateRiskWorkflow:step:end"
+            - img:
+              - group "Edge from host:risk-service to workflow:ExternalChecksWorkflow" [ref=e39] [cursor=pointer]
+            - img:
+              - group "Edge from workflow:ExternalChecksWorkflow to workflow:ExternalChecksWorkflow:operation:run"
+            - img:
+              - group "Edge from workflow:ExternalChecksWorkflow:step:start to workflow:ExternalChecksWorkflow:step:sanctions-check"
+            - img:
+              - group "Edge from workflow:ExternalChecksWorkflow:step:sanctions-check to workflow:ExternalChecksWorkflow:step:pep-check"
+            - img:
+              - group "Edge from workflow:ExternalChecksWorkflow:step:pep-check to workflow:ExternalChecksWorkflow:step:adverse-media"
+            - img:
+              - group "Edge from workflow:ExternalChecksWorkflow:step:adverse-media to workflow:ExternalChecksWorkflow:step:end"
+          - generic:
+            - group [ref=e42]:
+              - generic [ref=e43]:
+                - generic [ref=e46]:
+                  - img [ref=e47]
+                  - generic [ref=e50]: document
+                - generic [ref=e51]: Risk Service Workflow API
+                - generic [ref=e52]: Durable workflows for company risk enrichment and approval.
+            - group [ref=e53]:
+              - generic [ref=e54]:
+                - generic [ref=e57]:
+                  - img [ref=e58]
+                  - generic [ref=e61]: host
+                - generic [ref=e62]: Risk Service
+            - group [ref=e63]:
+              - generic [ref=e64]:
+                - generic [ref=e67]:
+                  - img [ref=e68]
+                  - generic [ref=e72]: bridge
+                - generic [ref=e73]: D&B company enrichment
+                - generic [ref=e74]: Calls the configured D&B enrichment endpoint.
+            - group [ref=e75]:
+              - generic [ref=e76]:
+                - generic [ref=e79]:
+                  - img [ref=e80]
+                  - generic [ref=e84]: bridge
+                - generic [ref=e85]: DocumentService.GeneratePdf
+            - group [ref=e86]:
+              - generic [ref=e87]:
+                - generic [ref=e90]:
+                  - img [ref=e91]
+                  - generic [ref=e95]: workflow
+                - generic [ref=e96]: Risk enrichment workflow
+                - generic [ref=e97]: Enriches a company, calculates risk, creates an audit trail, and publishes the result.
+            - group [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e102]:
+                  - img [ref=e103]
+                  - generic [ref=e106]: operation
+                - generic [ref=e107]: run
+            - group [ref=e108]:
+              - generic [ref=e109]:
+                - generic [ref=e112]:
+                  - img [ref=e113]
+                  - generic [ref=e116]: operation
+                - generic [ref=e117]: "signal: Cancel"
+                - generic [ref=e118]: Requests cancellation of the enrichment run.
+            - group [ref=e119]:
+              - generic [ref=e120]:
+                - generic [ref=e123]:
+                  - img [ref=e124]
+                  - generic [ref=e127]: operation
+                - generic [ref=e128]: "signal: ManualReviewBypassed"
+                - generic [ref=e129]: Indicates that manual review has been bypassed by an authorised user.
+            - group [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e134]:
+                  - img [ref=e135]
+                  - generic [ref=e138]: operation
+                - generic [ref=e139]: "query: GetStatus"
+                - generic [ref=e140]: Returns the current business status of the enrichment workflow.
+            - group [ref=e141]:
+              - generic [ref=e142]:
+                - generic [ref=e145]:
+                  - img [ref=e146]
+                  - generic [ref=e149]: operation
+                - generic [ref=e150]: "update: RefreshRiskModel"
+                - generic [ref=e151]: Re-runs the risk model with updated scoring parameters.
+            - group [ref=e152]:
+              - generic [ref=e153]:
+                - generic [ref=e156]:
+                  - img [ref=e157]
+                  - generic [ref=e160]: step
+                - generic [ref=e161]: Start
+            - group [ref=e162]:
+              - generic [ref=e163]:
+                - generic [ref=e166]:
+                  - img [ref=e167]
+                  - generic [ref=e178]: activity
+                - generic [ref=e179]: Identify company
+                - generic [ref=e180]: Resolves company identifiers and normalises address data.
+            - group [ref=e181]:
+              - generic [ref=e182]:
+                - generic [ref=e185]:
+                  - img [ref=e186]
+                  - generic [ref=e190]: bridge
+                - generic [ref=e191]: Enrich D&B data
+                - generic [ref=e192]: Calls an external D&B enrichment bridge.
+            - group [ref=e193]:
+              - generic [ref=e194]:
+                - generic [ref=e197]:
+                  - img [ref=e198]
+                  - generic [ref=e202]: childWorkflow
+                - generic [ref=e203]: Calculate risk
+                - generic [ref=e204]: Runs scoring as a nested child workflow.
+            - group [ref=e205]:
+              - generic [ref=e206]:
+                - generic [ref=e209]:
+                  - img [ref=e210]
+                  - generic [ref=e214]: bridge
+                - generic [ref=e215]: Generate PDF
+                - generic [ref=e216]: Requests PDF generation from the Document Service.
+            - group [ref=e217]:
+              - generic [ref=e218]:
+                - generic [ref=e221]:
+                  - img [ref=e222]
+                  - generic [ref=e233]: activity
+                - generic [ref=e234]: Publish result
+                - generic [ref=e235]: Publishes the final risk result to downstream systems.
+            - group [ref=e236]:
+              - generic [ref=e237]:
+                - generic [ref=e240]:
+                  - img [ref=e241]
+                  - generic [ref=e244]: step
+                - generic [ref=e245]: End
+            - group [ref=e246]:
+              - generic [ref=e247]:
+                - generic [ref=e250]:
+                  - img [ref=e251]
+                  - generic [ref=e255]: workflow
+                - generic [ref=e256]: Calculate risk child workflow
+                - generic [ref=e257]: Scores company risk using financial, behavioural, and compliance signals.
+            - group [ref=e258]:
+              - generic [ref=e259]:
+                - generic [ref=e262]:
+                  - img [ref=e263]
+                  - generic [ref=e266]: operation
+                - generic [ref=e267]: run
+            - group [ref=e268]:
+              - generic [ref=e269]:
+                - generic [ref=e272]:
+                  - img [ref=e273]
+                  - generic [ref=e276]: step
+                - generic [ref=e277]: start
+            - group [ref=e278]:
+              - generic [ref=e279]:
+                - generic [ref=e282]:
+                  - img [ref=e283]
+                  - generic [ref=e286]: step
+                - generic [ref=e287]: Fetch signals
+            - group [ref=e288]:
+              - generic [ref=e289]:
+                - generic [ref=e292]:
+                  - img [ref=e293]
+                  - generic [ref=e304]: activity
+                - generic [ref=e305]: Score engine
+            - group [ref=e306]:
+              - generic [ref=e307]:
+                - generic [ref=e310]:
+                  - img [ref=e311]
+                  - generic [ref=e315]: childWorkflow
+                - generic [ref=e316]: External checks
+            - group [ref=e317]:
+              - generic [ref=e318]:
+                - generic [ref=e321]:
+                  - img [ref=e322]
+                  - generic [ref=e333]: activity
+                - generic [ref=e334]: Aggregate score
+            - group [ref=e335]:
+              - generic [ref=e336]:
+                - generic [ref=e339]:
+                  - img [ref=e340]
+                  - generic [ref=e343]: step
+                - generic [ref=e344]: end
+            - group [ref=e345]:
+              - generic [ref=e346]:
+                - generic [ref=e349]:
+                  - img [ref=e350]
+                  - generic [ref=e354]: workflow
+                - generic [ref=e355]: External checks child workflow
+                - generic [ref=e356]: Performs compliance and watchlist checks used by the risk model.
+            - group [ref=e357]:
+              - generic [ref=e358]:
+                - generic [ref=e361]:
+                  - img [ref=e362]
+                  - generic [ref=e365]: operation
+                - generic [ref=e366]: run
+            - group [ref=e367]:
+              - generic [ref=e368]:
+                - generic [ref=e371]:
+                  - img [ref=e372]
+                  - generic [ref=e375]: step
+                - generic [ref=e376]: start
+            - group [ref=e377]:
+              - generic [ref=e378]:
+                - generic [ref=e381]:
+                  - img [ref=e382]
+                  - generic [ref=e393]: activity
+                - generic [ref=e394]: Sanctions check
+            - group [ref=e395]:
+              - generic [ref=e396]:
+                - generic [ref=e399]:
+                  - img [ref=e400]
+                  - generic [ref=e411]: activity
+                - generic [ref=e412]: PEP check
+            - group [ref=e413]:
+              - generic [ref=e414]:
+                - generic [ref=e417]:
+                  - img [ref=e418]
+                  - generic [ref=e429]: activity
+                - generic [ref=e430]: Adverse media
+            - group [ref=e431]:
+              - generic [ref=e432]:
+                - generic [ref=e435]:
+                  - img [ref=e436]
+                  - generic [ref=e439]: step
+                - generic [ref=e440]: end
+      - img
+      - generic "Control Panel" [ref=e441]:
+        - button "Zoom In" [ref=e442] [cursor=pointer]:
+          - img [ref=e443]
+        - button "Zoom Out" [disabled]:
+          - img
+        - button "Fit View" [ref=e445] [cursor=pointer]:
+          - img [ref=e446]
+        - button "Toggle Interactivity" [ref=e448] [cursor=pointer]:
+          - img [ref=e449]
+      - img "Mini Map" [ref=e452]
+      - link "React Flow attribution" [ref=e454] [cursor=pointer]:
+        - /url: https://reactflow.dev
+        - text: React Flow
+    - complementary [ref=e456]:
+      - paragraph [ref=e458]: Select a node to inspect its WorkflowAPI source fragment.
+  - generic [ref=e459]:
+    - button "Diagnostics 1 warning 1 info ▲" [ref=e460]:
+      - generic [ref=e461]: Diagnostics
+      - generic [ref=e462]: 1 warning
+      - generic [ref=e463]: 1 info
+      - generic [ref=e464]: ▲
+    - list [ref=e465]:
+      - listitem [ref=e466]:
+        - img [ref=e467]
+        - generic [ref=e469]: "Bridge \"DocumentService.GeneratePdf\" has an unresolved $ref: ./document-service-generate-pdf.bridge.workflowapi.yaml#/bridges/DocumentService.GeneratePdfbridges.DocumentService.GeneratePdf"
+      - listitem [ref=e470]:
+        - img [ref=e471]
+        - generic [ref=e473]: Subflow step "fetch-signals" in workflow "CalculateRiskWorkflow" is not expanded in this view.workflows.CalculateRiskWorkflow.topology.nodes.fetch-signals
+  - contentinfo [ref=e474]: risk-enrichment.workflowapi.yaml · 32 nodes · 28 edges

@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+:root {
+  --wfa-color-document: #334155;
+  --wfa-color-host: #475569;
+  --wfa-color-workflow: #6366f1;
+  --wfa-color-operation: #22c55e;
+  --wfa-color-activity: #14b8a6;
+  --wfa-color-step: #64748b;
+  --wfa-color-childWorkflow: #8b5cf6;
+  --wfa-color-bridge: #f43f5e;
+  --wfa-color-external: #94a3b8;
+  --wfa-color-diagnostic: #f59e0b;
+}
+

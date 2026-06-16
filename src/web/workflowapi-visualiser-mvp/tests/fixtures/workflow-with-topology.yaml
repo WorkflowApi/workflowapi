@@ -1,0 +1,33 @@
+workflowApi: 0.1.0
+info:
+  title: Workflow With Topology
+  version: 1.0.0
+# Unknown top-level field — must not crash the projection
+unknownTopLevel:
+  futureProp: someValue
+  nested:
+    deep: data
+workflows:
+  TestWorkflow:
+    name: TestWorkflow
+    displayName: Test Workflow
+    summary: A workflow used to verify unknown field permissiveness.
+    run:
+      operationId: runTest
+    topology:
+      nodes:
+        start:
+          kind: start
+          displayName: Start
+        do-thing:
+          kind: activity
+          displayName: Do Thing
+          activityRef: DoThingActivity
+        end:
+          kind: end
+          displayName: End
+      edges:
+        - from: start
+          to: do-thing
+        - from: do-thing
+          to: end

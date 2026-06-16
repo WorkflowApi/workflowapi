@@ -1,0 +1,18 @@
+workflowApi: 0.1.0
+info:
+  title: Bad Edge Ref
+  version: 1.0.0
+workflows:
+  BadWorkflow:
+    name: BadWorkflow
+    displayName: Bad Workflow
+    summary: Contains a topology edge referencing a step that does not exist.
+    topology:
+      nodes:
+        step-a:
+          kind: activity
+          displayName: Step A
+          activityRef: StepAActivity
+      edges:
+        - from: step-a
+          to: missing-step

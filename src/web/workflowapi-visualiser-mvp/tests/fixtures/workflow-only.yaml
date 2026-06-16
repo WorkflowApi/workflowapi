@@ -1,0 +1,11 @@
+workflowApi: 0.1.0
+info:
+  title: Workflow Only
+  version: 1.0.0
+workflows:
+  SimpleWorkflow:
+    name: SimpleWorkflow
+    displayName: Simple Workflow
+    summary: A simple workflow with no topology.
+    run:
+      operationId: runSimple
