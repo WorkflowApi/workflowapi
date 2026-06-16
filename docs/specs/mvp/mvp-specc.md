@@ -696,7 +696,7 @@ WorkflowAPI YAML
   -> node details panel
 ```
 
-```
+````
 
 ## 20. Implementation guidance for the coding agent
 
