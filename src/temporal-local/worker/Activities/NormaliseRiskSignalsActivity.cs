@@ -1,4 +1,5 @@
 using Temporalio.Activities;
+using B2B.RiskService.Metrics;
 
 namespace B2B.RiskService.Activities;
 
@@ -21,7 +22,9 @@ public sealed class NormaliseRiskSignalsActivity
         var creditExposure = Math.Clamp((double)(request.CreditLimit / 1_000_000m), 0d, 1d);
         var externalRisk = Math.Clamp((double)(request.PaymentHistory.TotalAmount / 2_000_000m), 0d, 1d);
 
-        return new NormalisedSignals(paymentBehaviour, creditExposure, externalRisk);
+        var signals = new NormalisedSignals(paymentBehaviour, creditExposure, externalRisk);
+        WorkerMetrics.RecordActivityExecution(nameof(NormaliseRiskSignalsActivity));
+        return signals;
     }
 }
 

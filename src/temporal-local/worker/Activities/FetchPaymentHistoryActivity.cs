@@ -1,4 +1,5 @@
 using Temporalio.Activities;
+using B2B.RiskService.Metrics;
 
 namespace B2B.RiskService.Activities;
 
@@ -19,7 +20,9 @@ public sealed class FetchPaymentHistoryActivity
         await ActivityExecutionHelper.DelayAsync(500, 1000);
         var count = Random.Shared.Next(3, 40);
         var amount = Math.Round((decimal)Random.Shared.NextDouble() * 2_000_000m, 2, MidpointRounding.AwayFromZero);
-        return new PaymentHistory(count, amount);
+        var result = new PaymentHistory(count, amount);
+        WorkerMetrics.RecordActivityExecution(nameof(FetchPaymentHistoryActivity));
+        return result;
     }
 }
 

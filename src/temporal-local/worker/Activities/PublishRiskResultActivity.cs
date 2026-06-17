@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -18,6 +19,7 @@ public sealed class PublishRiskResultActivity
     {
         _ = result;
         await ActivityExecutionHelper.DelayAsync(300, 800);
+        WorkerMetrics.RecordActivityExecution(nameof(PublishRiskResultActivity));
         return true;
     }
 }

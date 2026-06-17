@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -19,6 +20,8 @@ public sealed class PoliticallyExposedPersonCheckActivity
         _ = request;
         ActivityExecutionHelper.MaybeFail(nameof(PoliticallyExposedPersonCheckActivity));
         await ActivityExecutionHelper.DelayAsync(1000, 1500);
-        return Random.Shared.NextDouble() < 0.03d;
+        var hit = Random.Shared.NextDouble() < 0.03d;
+        WorkerMetrics.RecordActivityExecution(nameof(PoliticallyExposedPersonCheckActivity));
+        return hit;
     }
 }

@@ -20,6 +20,9 @@ import { SubflowNode } from "./nodes/SubflowNode";
 
 interface WorkflowVisualizerProps {
   graph: WorkflowGraph;
+  activityCounts: Record<string, number>;
+  metricsLoading: boolean;
+  metricsUnavailable: boolean;
 }
 
 const nodeTypes: NodeTypes = {
@@ -126,8 +129,36 @@ function resizeGroups(nodes: WNode[]): WNode[] {
   });
 }
 
-export function WorkflowVisualizer({ graph }: WorkflowVisualizerProps) {
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(() => graphToReactFlow(graph), [graph]);
+export function WorkflowVisualizer({
+  graph,
+  activityCounts,
+  metricsLoading,
+  metricsUnavailable,
+}: WorkflowVisualizerProps) {
+  const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
+    const result = graphToReactFlow(graph);
+    const mappedNodes = result.nodes.map((node) => {
+      if (node.type !== "activity") {
+        return node;
+      }
+
+      const activityType =
+        typeof node.data.activityType === "string" ? node.data.activityType : undefined;
+      const executionCount = activityType ? activityCounts[activityType] : undefined;
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          executionCount,
+          metricsLoading,
+          metricsUnavailable,
+        },
+      };
+    });
+
+    return { nodes: mappedNodes, edges: result.edges };
+  }, [graph, activityCounts, metricsLoading, metricsUnavailable]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 

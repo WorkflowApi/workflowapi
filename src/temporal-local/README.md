@@ -21,6 +21,9 @@ Services:
 - Temporal gRPC: `localhost:7233`
 - Temporal UI: `http://localhost:8233`
 - Workflow Visualizer: `http://localhost:3000` (or `http://localhost:${VISUALIZER_PORT}`)
+- Metrics Proxy: `http://localhost:4000` (or `http://localhost:${METRICS_PROXY_PORT}`)
+- Prometheus UI: `http://localhost:9090` (or `http://localhost:${PROMETHEUS_PORT}`)
+- Worker metrics endpoint: `http://localhost:9091/metrics` (or `http://localhost:${METRICS_PORT}/metrics`)
 - Namespace: `B2B.RiskService`
 - Task queue: `risk-enrichment`
 
@@ -56,6 +59,9 @@ docker compose down -v
 | `ACTIVITY_MIN_DELAY_MS` | `500` | Global minimum simulated activity delay |
 | `ACTIVITY_MAX_DELAY_MS` | `2000` | Global maximum simulated activity delay |
 | `VISUALIZER_PORT` | `3000` | Host port for Workflow Visualizer (`must not be 7233/8233`) |
+| `METRICS_PROXY_PORT` | `4000` | Host port for Metrics Proxy API |
+| `PROMETHEUS_PORT` | `9090` | Host port for Prometheus UI |
+| `METRICS_PORT` | `9091` | Host port mapped to worker metrics endpoint (`/metrics`) |
 
 Create local runtime values with:
 
@@ -67,4 +73,7 @@ cp .env.example .env
 
 - **Port conflict (`VISUALIZER_PORT`)**: Choose a free host port in `src/.env`, then restart:
   `docker compose up --build -d workflow-visualizer`
+- **No activity counts**: Verify metrics pipeline health:
+  - `curl http://localhost:${METRICS_PORT:-9091}/metrics | grep temporal_activity_task_completed_total`
+  - `curl http://localhost:${METRICS_PROXY_PORT:-4000}/api/activity-counts?range=1h`
 - **Visualizer build failure**: Inspect `docker compose logs workflow-visualizer` for TypeScript or npm errors and rebuild after fixing the source.

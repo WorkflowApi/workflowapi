@@ -1,4 +1,5 @@
 using Temporalio.Activities;
+using B2B.RiskService.Metrics;
 
 namespace B2B.RiskService.Activities;
 
@@ -24,6 +25,8 @@ public sealed class ScoreCompanyRiskActivity
 
         var noisy = composite + ((Random.Shared.NextDouble() - 0.5d) * 0.15d);
         var scaled = Math.Clamp(noisy, 0d, 1d) * 100d;
-        return Math.Round(scaled, 2, MidpointRounding.AwayFromZero);
+        var score = Math.Round(scaled, 2, MidpointRounding.AwayFromZero);
+        WorkerMetrics.RecordActivityExecution(nameof(ScoreCompanyRiskActivity));
+        return score;
     }
 }

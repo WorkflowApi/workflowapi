@@ -8,11 +8,12 @@ export interface WorkflowNodeData {
   kind: string;
   id: string;
   localId?: string;
+  activityType?: string;
   [key: string]: unknown;
 }
 
 interface SubflowData {
-  nodes: Record<string, { kind: string; displayName?: string; summary?: string }>;
+  nodes: Record<string, { kind: string; displayName?: string; summary?: string; activityRef?: string }>;
   edges: Array<{ from: string; to: string }>;
 }
 
@@ -20,6 +21,7 @@ interface ChildWorkflowNodeData {
   kind: string;
   displayName?: string;
   summary?: string;
+  activityRef?: string;
   workflowRef?: string;
   subflowRef?: string;
   subflow?: SubflowData;
@@ -253,6 +255,10 @@ function expandChildWorkflowGroup(
       const isTerminal = childNode.kind === "start" || childNode.kind === "end";
       const nodeW = isTerminal ? NODE_SIZES.terminal.width : SUBFLOW_CHILD_SIZE.width;
       const nodeH = isTerminal ? NODE_SIZES.terminal.height : SUBFLOW_CHILD_SIZE.height;
+      const activityType =
+        nodeType === "activity"
+          ? childNode.activityRef ?? (childNode.displayName ?? childId)
+          : undefined;
       nodes.push({
         id: globalChildId,
         type: nodeType,
@@ -262,6 +268,7 @@ function expandChildWorkflowGroup(
           description: childNode.summary,
           kind: nodeType,
           id: globalChildId,
+          activityType,
         },
         position: {
           x: childPos.x - nodeW / 2 + SUBFLOW_PADDING,
@@ -347,6 +354,7 @@ function expandSubflowChildren(
         description: childNode.summary,
         kind: "activity",
         id: globalChildId,
+        activityType: childNode.activityRef ?? (childNode.displayName ?? childId),
       },
       position: {
         x: childPos.x - SUBFLOW_CHILD_SIZE.width / 2 + SUBFLOW_PADDING,
@@ -466,6 +474,13 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
     const localId = node.raw && typeof node.raw === "object" && "localNodeId" in node.raw
       ? (node.raw.localNodeId as string)
       : undefined;
+    const activityType = node.kind === "activity" &&
+      node.raw &&
+      typeof node.raw === "object" &&
+      "activityRef" in node.raw &&
+      typeof node.raw.activityRef === "string"
+      ? node.raw.activityRef
+      : undefined;
 
     if (node.kind === "subflow") {
       const subflow = getSubflowData(node);
@@ -473,7 +488,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       nodes.push({
         id: node.id,
         type: "subflow",
-        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId },
+        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
         position: { x: topLeftX, y: topLeftY },
         style: { width: size.width, height: size.height },
       });
@@ -494,7 +509,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
         nodes.push({
           id: node.id,
           type: "childWorkflow",
-          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId },
+          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
           position: { x: topLeftX, y: topLeftY },
         });
 
@@ -505,7 +520,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
         nodes.push({
           id: node.id,
           type: "childWorkflow",
-          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId },
+          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
           position: { x: topLeftX, y: topLeftY },
         });
       }
@@ -514,7 +529,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       nodes.push({
         id: node.id,
         type: node.kind,
-        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId },
+        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
         position: { x: topLeftX, y: topLeftY },
       });
     }

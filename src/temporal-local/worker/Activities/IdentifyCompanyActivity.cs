@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -18,11 +19,14 @@ public sealed class IdentifyCompanyActivity
     {
         await ActivityExecutionHelper.DelayAsync(500, 1000);
 
-        return request with
+        var result = request with
         {
             Duns = string.IsNullOrWhiteSpace(request.Duns)
                 ? Random.Shared.Next(100000000, 999999999).ToString()
                 : request.Duns,
         };
+
+        WorkerMetrics.RecordActivityExecution(nameof(IdentifyCompanyActivity));
+        return result;
     }
 }

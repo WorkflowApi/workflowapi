@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -36,11 +37,14 @@ public sealed class AggregateRiskScoreActivity
             _ => "high",
         };
 
-        return new RiskScoreResult
+        var result = new RiskScoreResult
         {
             Score = Math.Round(adjusted, 2, MidpointRounding.AwayFromZero),
             RiskClass = riskClass,
         };
+
+        WorkerMetrics.RecordActivityExecution(nameof(AggregateRiskScoreActivity));
+        return result;
     }
 }
 

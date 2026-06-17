@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -24,6 +25,7 @@ public sealed class EnrichDnbActivity
             : request.CompanyName;
 
         var creditLimit = Random.Shared.Next(100_000, 5_000_000);
+        WorkerMetrics.RecordActivityExecution(nameof(EnrichDnbActivity));
 
         return new DnbEnrichmentResult(legalName, creditLimit);
     }

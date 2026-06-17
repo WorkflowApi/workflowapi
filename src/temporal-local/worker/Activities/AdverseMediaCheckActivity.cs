@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -19,6 +20,8 @@ public sealed class AdverseMediaCheckActivity
         _ = request;
         ActivityExecutionHelper.MaybeFail(nameof(AdverseMediaCheckActivity));
         await ActivityExecutionHelper.DelayAsync(800, 1200);
-        return Random.Shared.NextDouble() < 0.08d;
+        var hit = Random.Shared.NextDouble() < 0.08d;
+        WorkerMetrics.RecordActivityExecution(nameof(AdverseMediaCheckActivity));
+        return hit;
     }
 }

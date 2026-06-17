@@ -10,5 +10,6 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish ./
+EXPOSE 9090
 USER $APP_UID
 ENTRYPOINT ["dotnet", "RiskWorker.dll"]

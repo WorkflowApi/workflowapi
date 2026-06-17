@@ -1,4 +1,5 @@
 using B2B.RiskService.Models;
+using B2B.RiskService.Metrics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -21,6 +22,8 @@ public sealed class GeneratePdfActivity
         _ = riskClass;
         ActivityExecutionHelper.MaybeFail(nameof(GeneratePdfActivity));
         await ActivityExecutionHelper.DelayAsync(1500, 2000);
-        return Guid.NewGuid().ToString();
+        var documentId = Guid.NewGuid().ToString();
+        WorkerMetrics.RecordActivityExecution(nameof(GeneratePdfActivity));
+        return documentId;
     }
 }

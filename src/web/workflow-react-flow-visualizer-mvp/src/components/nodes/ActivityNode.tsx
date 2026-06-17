@@ -1,10 +1,15 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
+import { ExecutionCountBadge } from "./ExecutionCountBadge";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function ActivityNode({ data }: NodeProps) {
-  const nodeData = data as WorkflowNodeData;
+  const nodeData = data as WorkflowNodeData & {
+    executionCount?: number;
+    metricsLoading?: boolean;
+    metricsUnavailable?: boolean;
+  };
 
   return (
     <div
@@ -20,6 +25,13 @@ export function ActivityNode({ data }: NodeProps) {
           </span>
           Activity
         </span>
+      </div>
+      <div className="absolute -top-2.5 right-2.5 z-10">
+        <ExecutionCountBadge
+          count={nodeData.executionCount}
+          isLoading={Boolean(nodeData.metricsLoading)}
+          isUnavailable={Boolean(nodeData.metricsUnavailable)}
+        />
       </div>
       <div className="px-3 pb-2.5 pt-3.5">
         <p className="text-[13px] font-semibold leading-snug">{nodeData.label}</p>

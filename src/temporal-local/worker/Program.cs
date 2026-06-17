@@ -1,9 +1,11 @@
 using B2B.RiskService.Activities;
+using B2B.RiskService.Metrics;
 using B2B.RiskService.Simulation;
 using B2B.RiskService.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Metrics;
 using Temporalio.Extensions.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -18,12 +20,26 @@ builder.Logging.AddSimpleConsole(options =>
 var temporalAddress = builder.Configuration["TEMPORAL_ADDRESS"] ?? "temporal:7233";
 var temporalNamespace = builder.Configuration["TEMPORAL_NAMESPACE"] ?? "B2B.RiskService";
 var temporalTaskQueue = builder.Configuration["TEMPORAL_TASK_QUEUE"] ?? "risk-enrichment";
+const int metricsPort = 9090;
 
 builder.Services.AddTemporalClient(options =>
 {
     options.TargetHost = temporalAddress;
     options.Namespace = temporalNamespace;
 });
+
+builder.Services
+    .AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddMeter(WorkerMetrics.MeterName)
+            .AddPrometheusHttpListener(options =>
+            {
+                options.Host = "risk-worker";
+                options.Port = metricsPort;
+            });
+    });
 
 builder.Services
     .AddHostedTemporalWorker(temporalTaskQueue)

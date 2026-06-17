@@ -85,6 +85,8 @@ services:
       ACTIVITY_FAILURE_RATE: ${ACTIVITY_FAILURE_RATE:-0.10}
       ACTIVITY_MIN_DELAY_MS: ${ACTIVITY_MIN_DELAY_MS:-500}
       ACTIVITY_MAX_DELAY_MS: ${ACTIVITY_MAX_DELAY_MS:-2000}
+    ports:
+      - "${METRICS_PORT:-9091}:9090"
     networks:
       - temporal-local
     healthcheck:
@@ -94,6 +96,50 @@ services:
       retries: 6
       start_period: 20s
     restart: on-failure:3
+
+  prometheus:
+    image: prom/prometheus:v3.4.1
+    container_name: prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=45d"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  metrics-proxy:
+    build:
+      context: ./web/metrics-proxy
+      dockerfile: Dockerfile
+    container_name: metrics-proxy
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      CORS_ORIGIN: http://localhost:${VISUALIZER_PORT:-3000}
+      PROMETHEUS_URL: http://prometheus:9090
+    ports:
+      - "${METRICS_PROXY_PORT:-4000}:4000"
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   workflow-visualizer:
     build:
