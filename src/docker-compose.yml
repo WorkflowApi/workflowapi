@@ -35,7 +35,7 @@ services:
     ports:
       - "7233:7233"
     volumes:
-      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+      - ./temporal-local/dynamicconfig:/etc/temporal/config/dynamicconfig
     networks:
       - temporal-local
     healthcheck:
@@ -54,7 +54,7 @@ services:
         condition: service_healthy
     environment:
       TEMPORAL_ADDRESS: temporal:7233
-      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+      TEMPORAL_CORS_ORIGINS: http://localhost:${VISUALIZER_PORT:-3000}
       TEMPORAL_NOTIFY_ON_NEW_VERSION: "false"
     ports:
       - "8233:8080"
@@ -70,7 +70,7 @@ services:
 
   risk-worker:
     build:
-      context: ./worker
+      context: ./temporal-local/worker
       dockerfile: Dockerfile
     container_name: risk-worker
     depends_on:
@@ -94,6 +94,23 @@ services:
       retries: 6
       start_period: 20s
     restart: on-failure:3
+
+  workflow-visualizer:
+    build:
+      context: ./web/workflow-react-flow-visualizer-mvp
+      dockerfile: Dockerfile
+    container_name: workflow-visualizer
+    ports:
+      - "${VISUALIZER_PORT:-3000}:80"
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
 
 networks:
   temporal-local:

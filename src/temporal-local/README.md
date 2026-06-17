@@ -10,14 +10,17 @@ This package provides a local Temporal stack for `examples/risk-enrichment.workf
 ## Quick start
 
 ```bash
-cd src/temporal-local
+cd src
 docker compose up --build
 ```
+
+The compose entrypoint is `src/docker-compose.yml`.
 
 Services:
 
 - Temporal gRPC: `localhost:7233`
 - Temporal UI: `http://localhost:8233`
+- Workflow Visualizer: `http://localhost:3000` (or `http://localhost:${VISUALIZER_PORT}`)
 - Namespace: `B2B.RiskService`
 - Task queue: `risk-enrichment`
 
@@ -52,3 +55,16 @@ docker compose down -v
 | `ACTIVITY_FAILURE_RATE` | `0.10` | Failure probability for selected activities |
 | `ACTIVITY_MIN_DELAY_MS` | `500` | Global minimum simulated activity delay |
 | `ACTIVITY_MAX_DELAY_MS` | `2000` | Global maximum simulated activity delay |
+| `VISUALIZER_PORT` | `3000` | Host port for Workflow Visualizer (`must not be 7233/8233`) |
+
+Create local runtime values with:
+
+```bash
+cp .env.example .env
+```
+
+## Troubleshooting
+
+- **Port conflict (`VISUALIZER_PORT`)**: Choose a free host port in `src/.env`, then restart:
+  `docker compose up --build -d workflow-visualizer`
+- **Visualizer build failure**: Inspect `docker compose logs workflow-visualizer` for TypeScript or npm errors and rebuild after fixing the source.
