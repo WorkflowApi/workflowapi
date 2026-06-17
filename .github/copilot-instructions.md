@@ -18,3 +18,9 @@ Repository standards:
 References:
 - See /docs/specs/ for the normative WorkflowAPI specification.
 - See /docs/assets/ for UI mockups.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan at
+specs/001-local-temporal-environment/plan.md
+<!-- SPECKIT END -->

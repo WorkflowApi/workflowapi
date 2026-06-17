@@ -1,0 +1,101 @@
+services:
+  postgresql:
+    image: postgres:${POSTGRES_VERSION:-16}
+    container_name: temporal-postgresql
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+    volumes:
+      - /var/lib/postgresql/data
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+    restart: unless-stopped
+
+  temporal:
+    image: temporalio/auto-setup:${TEMPORAL_VERSION:-1.29.2}
+    container_name: temporal-server
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal
+      POSTGRES_SEEDS: postgresql
+      DEFAULT_NAMESPACE: ${TEMPORAL_NAMESPACE:-B2B.RiskService}
+      BIND_ON_IP: 0.0.0.0
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+    restart: unless-stopped
+
+  temporal-ui:
+    image: temporalio/ui:${TEMPORAL_UI_VERSION:-2.51.0}
+    container_name: temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+      TEMPORAL_NOTIFY_ON_NEW_VERSION: "false"
+    ports:
+      - "8233:8080"
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  risk-worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: risk-worker
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-B2B.RiskService}
+      TEMPORAL_TASK_QUEUE: ${TEMPORAL_TASK_QUEUE:-risk-enrichment}
+      SIMULATOR_ENABLED: ${SIMULATOR_ENABLED:-true}
+      SIMULATOR_INTERVAL_SECONDS: ${SIMULATOR_INTERVAL_SECONDS:-5}
+      ACTIVITY_FAILURE_RATE: ${ACTIVITY_FAILURE_RATE:-0.10}
+      ACTIVITY_MIN_DELAY_MS: ${ACTIVITY_MIN_DELAY_MS:-500}
+      ACTIVITY_MAX_DELAY_MS: ${ACTIVITY_MAX_DELAY_MS:-2000}
+    networks:
+      - temporal-local
+    healthcheck:
+      test: ["CMD-SHELL", "ps -eo args | grep -q '[d]otnet RiskWorker.dll'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: on-failure:3
+
+networks:
+  temporal-local:
+    driver: bridge
+    name: temporal-local
