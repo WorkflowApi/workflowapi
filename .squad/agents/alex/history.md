@@ -8,3 +8,7 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+## 2026-06-17 — Team MVP evaluation (requested by Rebecca Powell)
+
+Produced independent v1 MVP readiness assessment from docs/specs/*. Submission archived under decisions.md → "Inbox Archive — 2026-06-17". See orchestration-log/2026-06-17T12-37-19Z-alex.md for verdict summary.

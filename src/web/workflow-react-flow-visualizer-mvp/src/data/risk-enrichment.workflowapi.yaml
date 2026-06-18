@@ -1,65 +1,114 @@
 workflowApi: 0.1.0
 info:
-  title: Risk Service Workflow API
-  version: 1.0.0
-  summary: Durable workflows for company risk enrichment and approval.
-  description: >-
-    Describes the declared WorkflowAPI surface for the Risk Service, including
-    externally callable workflow operations, child workflows, internal subflows,
-    bridges, schemas, and Temporal binding metadata.
-
+  title: risk-enrichment Workflow API
+  version: 0.1.0
+  summary: Generated from .NET Temporal worker registered on task queue 'risk-enrichment'.
 host:
-  id: risk-service
-  name: Risk Service
-  owner:
-    team: B2B Risk Engineering
-    contact: risk-service@example.internal
-  environment: prod
-  baseUrl: https://risk-service.example.internal
-
+  id: risk-enrichment
+  name: risk-enrichment
 bindings:
   temporal:
     namespace: B2B.RiskService
     taskQueue: risk-enrichment
-    webUrl: https://temporal.example.internal/namespaces/B2B.RiskService
-    workerHost: risk-worker
     sdk: temporal-dotnet
-
 workflows:
+  CalculateRiskWorkflow:
+    name: CalculateRiskWorkflow
+    displayName: Calculate risk workflow
+    run:
+      operationId: Run
+    topology:
+      nodes:
+        start:
+          kind: start
+          displayName: Start
+        fetch-payment-history:
+          kind: activity
+          displayName: Fetch payment history
+          activityRef: FetchPaymentHistoryActivity
+        fetch-credit-limit:
+          kind: activity
+          displayName: Fetch credit limit
+          activityRef: FetchCreditLimitActivity
+        normalise-risk-signals:
+          kind: activity
+          displayName: Normalise risk signals
+          activityRef: NormaliseRiskSignalsActivity
+        score-company-risk:
+          kind: activity
+          displayName: Score company risk
+          activityRef: ScoreCompanyRiskActivity
+        external-checks:
+          kind: childWorkflow
+          displayName: External checks
+          workflowRef: ExternalChecksWorkflow
+        aggregate-risk-score:
+          kind: activity
+          displayName: Aggregate risk score
+          activityRef: AggregateRiskScoreActivity
+        end:
+          kind: end
+          displayName: End
+      edges:
+      - from: start
+        to: fetch-payment-history
+      - from: fetch-payment-history
+        to: fetch-credit-limit
+      - from: fetch-credit-limit
+        to: normalise-risk-signals
+      - from: normalise-risk-signals
+        to: score-company-risk
+      - from: score-company-risk
+        to: external-checks
+      - from: external-checks
+        to: aggregate-risk-score
+      - from: aggregate-risk-score
+        to: end
+  ExternalChecksWorkflow:
+    name: ExternalChecksWorkflow
+    displayName: External checks workflow
+    run:
+      operationId: Run
+    topology:
+      nodes:
+        start:
+          kind: start
+          displayName: Start
+        sanctions-check:
+          kind: activity
+          displayName: Sanctions check
+          activityRef: SanctionsCheckActivity
+        politically-exposed-person-check:
+          kind: activity
+          displayName: Politically exposed person check
+          activityRef: PoliticallyExposedPersonCheckActivity
+        adverse-media-check:
+          kind: activity
+          displayName: Adverse media check
+          activityRef: AdverseMediaCheckActivity
+        end:
+          kind: end
+          displayName: End
+      edges:
+      - from: start
+        to: sanctions-check
+      - from: sanctions-check
+        to: politically-exposed-person-check
+      - from: politically-exposed-person-check
+        to: adverse-media-check
+      - from: adverse-media-check
+        to: end
   RiskEnrichmentWorkflow:
     name: RiskEnrichmentWorkflow
     displayName: Risk enrichment workflow
-    summary: Enriches a company, calculates risk, creates an audit trail, and publishes the result.
-    version: v1
-    tags: [risk, enrichment, dnb]
     run:
-      operationId: runRiskEnrichment
-      input:
-        $ref: '#/components/schemas/RiskEnrichmentRequest'
-      output:
-        $ref: '#/components/schemas/RiskEnrichmentResult'
+      operationId: Run
     signals:
       Cancel:
-        summary: Requests cancellation of the enrichment run.
-        input:
-          $ref: '#/components/schemas/CancelSignal'
-      ManualReviewBypassed:
-        summary: Indicates that manual review has been bypassed by an authorised user.
-        input:
-          $ref: '#/components/schemas/ManualReviewBypassedSignal'
+        operationId: Cancel
     queries:
       GetStatus:
-        summary: Returns the current business status of the enrichment workflow.
-        output:
-          $ref: '#/components/schemas/RiskEnrichmentStatus'
-    updates:
-      RefreshRiskModel:
-        summary: Re-runs the risk model with updated scoring parameters.
-        input:
-          $ref: '#/components/schemas/RiskModelRefreshRequest'
-        output:
-          $ref: '#/components/schemas/RiskEnrichmentResult'
-
+        operationId: GetStatus
     topology:
       nodes:
         start:
@@ -69,255 +118,60 @@ workflows:
           kind: activity
           displayName: Identify company
           activityRef: IdentifyCompanyActivity
-          summary: Resolves company identifiers and normalises address data.
-        enrich-dnb-data:
-          kind: bridge
-          displayName: Enrich D&B data
-          bridgeRef: bridges.Dnb.EnrichCompany
-          summary: Calls an external D&B enrichment bridge.
+        enrich-dnb:
+          kind: activity
+          displayName: Enrich dnb
+          activityRef: EnrichDnbActivity
         calculate-risk:
           kind: childWorkflow
           displayName: Calculate risk
           workflowRef: CalculateRiskWorkflow
-          summary: Runs scoring as a nested child workflow.
-        document-pdf:
-          kind: bridge
-          displayName: Generate PDF
-          bridgeRef: bridges.DocumentService.GeneratePdf
-          summary: Requests PDF generation from the Document Service.
-        publish-result:
+        generate-pdf:
           kind: activity
-          displayName: Publish result
+          displayName: Generate pdf
+          activityRef: GeneratePdfActivity
+        publish-risk-result:
+          kind: activity
+          displayName: Publish risk result
           activityRef: PublishRiskResultActivity
-          summary: Publishes the final risk result to downstream systems.
         end:
           kind: end
           displayName: End
       edges:
-        - from: start
-          to: identify-company
-        - from: identify-company
-          to: enrich-dnb-data
-        - from: enrich-dnb-data
-          to: calculate-risk
-        - from: calculate-risk
-          to: document-pdf
-        - from: document-pdf
-          to: publish-result
-        - from: publish-result
-          to: end
-
-  CalculateRiskWorkflow:
-    name: CalculateRiskWorkflow
-    displayName: Calculate risk child workflow
-    summary: Scores company risk using financial, behavioural, and compliance signals.
-    visibility: internal
-    parentWorkflows:
-      - RiskEnrichmentWorkflow
-    run:
-      operationId: runCalculateRisk
-      input:
-        $ref: '#/components/schemas/CalculateRiskRequest'
-      output:
-        $ref: '#/components/schemas/RiskScoreResult'
-    topology:
-      nodes:
-        start:
-          kind: start
-        fetch-signals:
-          kind: subflow
-          displayName: Fetch signals
-          subflowRef: '#/components/subflows/SignalCollectionSubflow'
-        score-engine:
-          kind: activity
-          displayName: Score engine
-          activityRef: ScoreCompanyRiskActivity
-        external-checks:
-          kind: childWorkflow
-          displayName: External checks
-          workflowRef: ExternalChecksWorkflow
-        aggregate:
-          kind: activity
-          displayName: Aggregate score
-          activityRef: AggregateRiskScoreActivity
-        end:
-          kind: end
-      edges:
-        - from: start
-          to: fetch-signals
-        - from: fetch-signals
-          to: score-engine
-        - from: score-engine
-          to: external-checks
-        - from: external-checks
-          to: aggregate
-        - from: aggregate
-          to: end
-
-  ExternalChecksWorkflow:
-    name: ExternalChecksWorkflow
-    displayName: External checks child workflow
-    summary: Performs compliance and watchlist checks used by the risk model.
-    visibility: internal
-    parentWorkflows:
-      - CalculateRiskWorkflow
-    run:
-      operationId: runExternalChecks
-      input:
-        $ref: '#/components/schemas/ExternalChecksRequest'
-      output:
-        $ref: '#/components/schemas/ExternalChecksResult'
-    topology:
-      nodes:
-        start:
-          kind: start
-        sanctions-check:
-          kind: activity
-          displayName: Sanctions check
-          activityRef: SanctionsCheckActivity
-        pep-check:
-          kind: activity
-          displayName: PEP check
-          activityRef: PoliticallyExposedPersonCheckActivity
-        adverse-media:
-          kind: activity
-          displayName: Adverse media
-          activityRef: AdverseMediaCheckActivity
-        end:
-          kind: end
-      edges:
-        - from: start
-          to: sanctions-check
-        - from: sanctions-check
-          to: pep-check
-        - from: pep-check
-          to: adverse-media
-        - from: adverse-media
-          to: end
-
-components:
-  subflows:
-    SignalCollectionSubflow:
-      summary: Reusable inline subflow that gathers scoring signals before risk calculation.
-      nodes:
-        fetch-payment-history:
-          kind: activity
-          displayName: Fetch payment history
-          activityRef: FetchPaymentHistoryActivity
-        fetch-credit-limit:
-          kind: activity
-          displayName: Fetch credit limit
-          activityRef: FetchCreditLimitActivity
-        normalise-signals:
-          kind: activity
-          displayName: Normalise signals
-          activityRef: NormaliseRiskSignalsActivity
-      edges:
-        - from: fetch-payment-history
-          to: fetch-credit-limit
-        - from: fetch-credit-limit
-          to: normalise-signals
-  schemas:
-    RiskEnrichmentRequest:
-      type: object
-      required: [companyId, country]
-      properties:
-        companyId:
-          type: string
-        companyName:
-          type: string
-        country:
-          type: string
-        duns:
-          type: string
-        reason:
-          type: string
-    RiskEnrichmentResult:
-      type: object
-      required: [companyId, riskClass, status]
-      properties:
-        companyId:
-          type: string
-        riskClass:
-          type: string
-        status:
-          type: string
-        documentId:
-          type: string
-    RiskEnrichmentStatus:
-      type: object
-      properties:
-        state:
-          type: string
-        currentStep:
-          type: string
-        updatedAt:
-          type: string
-          format: date-time
-    CancelSignal:
-      type: object
-      properties:
-        reason:
-          type: string
-    ManualReviewBypassedSignal:
-      type: object
-      properties:
-        approvedBy:
-          type: string
-        approvedAt:
-          type: string
-          format: date-time
-    RiskModelRefreshRequest:
-      type: object
-      properties:
-        modelVersion:
-          type: string
-    CalculateRiskRequest:
-      type: object
-      properties:
-        companyId:
-          type: string
-        duns:
-          type: string
-    RiskScoreResult:
-      type: object
-      properties:
-        score:
-          type: number
-        riskClass:
-          type: string
-    ExternalChecksRequest:
-      type: object
-      properties:
-        companyId:
-          type: string
-        country:
-          type: string
-    ExternalChecksResult:
-      type: object
-      properties:
-        sanctionsHit:
-          type: boolean
-        pepHit:
-          type: boolean
-        adverseMediaHit:
-          type: boolean
-
-bridges:
-  Dnb.EnrichCompany:
-    displayName: D&B company enrichment
-    kind: external
-    summary: Calls the configured D&B enrichment endpoint.
-    input:
-      $ref: '#/components/schemas/RiskEnrichmentRequest'
-    output:
-      type: object
-      properties:
-        duns:
-          type: string
-        legalName:
-          type: string
-        creditLimit:
-          type: number
-  DocumentService.GeneratePdf:
-    $ref: './document-service-generate-pdf.bridge.workflowapi.yaml#/bridges/DocumentService.GeneratePdf'
+      - from: start
+        to: identify-company
+      - from: identify-company
+        to: enrich-dnb
+      - from: enrich-dnb
+        to: calculate-risk
+      - from: calculate-risk
+        to: generate-pdf
+      - from: generate-pdf
+        to: publish-risk-result
+      - from: publish-risk-result
+        to: end
+activities:
+  AdverseMediaCheckActivity:
+    title: Adverse media check activity
+  AggregateRiskScoreActivity:
+    title: Aggregate risk score activity
+  EnrichDnbActivity:
+    title: Enrich dnb activity
+  FetchCreditLimitActivity:
+    title: Fetch credit limit activity
+  FetchPaymentHistoryActivity:
+    title: Fetch payment history activity
+  GeneratePdfActivity:
+    title: Generate pdf activity
+  IdentifyCompanyActivity:
+    title: Identify company activity
+  NormaliseRiskSignalsActivity:
+    title: Normalise risk signals activity
+  PoliticallyExposedPersonCheckActivity:
+    title: Politically exposed person check activity
+  PublishRiskResultActivity:
+    title: Publish risk result activity
+  SanctionsCheckActivity:
+    title: Sanctions check activity
+  ScoreCompanyRiskActivity:
+    title: Score company risk activity

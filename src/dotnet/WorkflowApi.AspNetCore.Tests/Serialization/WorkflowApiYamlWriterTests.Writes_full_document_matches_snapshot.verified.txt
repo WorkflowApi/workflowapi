@@ -1,0 +1,93 @@
+﻿workflowApi: 0.1.0
+info:
+  title: Workflow API
+  version: 1.2.3
+  summary: Document summary
+  description: Document description
+host:
+  id: worker-host
+  name: Worker Host
+bindings:
+  temporal:
+    namespace: payments
+    taskQueue: payments-queue
+    workerHost: payments-worker
+    sdk: dotnet
+workflows:
+  alphaWorkflow:
+    name: AlphaWorkflow
+    run:
+      operationId: runAlpha
+  zetaWorkflow:
+    name: ZetaWorkflow
+    displayName: Zeta Workflow
+    run:
+      operationId: runZeta
+      summary: Start zeta workflow
+      input:
+        $ref: '#/components/schemas/ZetaInput'
+      output:
+        $ref: '#/components/schemas/ZetaOutput'
+      bindings:
+        temporal:
+          namespace: payments
+          taskQueue: zeta-queue
+          sdk: dotnet
+    signals:
+      cancel:
+        operationId: cancelZeta
+        summary: Cancel zeta workflow
+        input:
+          $ref: '#/components/schemas/CancelInput'
+      resume:
+        operationId: resumeZeta
+        summary: Resume zeta workflow
+        input:
+          $ref: '#/components/schemas/ResumeInput'
+    queries:
+      status:
+        operationId: statusZeta
+        summary: Get zeta status
+        output:
+          $ref: '#/components/schemas/StatusOutput'
+    updates:
+      priority:
+        operationId: updateZetaPriority
+        summary: Update zeta priority
+        input:
+          $ref: '#/components/schemas/PriorityInput'
+        output:
+          $ref: '#/components/schemas/PriorityOutput'
+    bindings:
+      temporal:
+        namespace: payments
+        taskQueue: workflow-queue
+        workerHost: workflow-host
+        sdk: dotnet
+activities:
+  archive: {}
+  sendEmail:
+    title: Send Email
+    summary: Send an email message
+    group: notifications
+    visibility: public
+bridges:
+  billing:
+    kind: http
+    operations:
+    - quote
+  orders:
+    displayName: Orders Bridge
+    kind: nexus
+    summary: Bridge summary
+    operations:
+    - run
+    - status
+diagnostics:
+- severity: warning
+  code: WFA001
+  message: A warning
+  target: workflows.zetaWorkflow
+- severity: error
+  code: WFA002
+  message: An error
