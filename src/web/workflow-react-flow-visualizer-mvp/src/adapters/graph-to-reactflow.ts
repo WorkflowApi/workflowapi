@@ -318,7 +318,8 @@ function expandChildWorkflowGroup(
       source: sourceId,
       target: targetId,
       type: "smoothstep",
-      style: { stroke: "#a855f7", strokeWidth: 1.5 },
+      animated: true,
+      style: { stroke: "#a855f7", strokeWidth: 1.5, strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#a855f7" },
     });
   }
@@ -386,7 +387,8 @@ function expandSubflowChildren(
       source: sourceId,
       target: targetId,
       type: "smoothstep",
-      style: { stroke: "#14b8a6", strokeWidth: 1.5 },
+      animated: true,
+      style: { stroke: "#14b8a6", strokeWidth: 1.5, strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#14b8a6" },
     });
   }
@@ -567,7 +569,8 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       target,
       label: edge.label,
       type: "smoothstep",
-      style: { stroke: "#6b7280", strokeWidth: 1.5 },
+      animated: true,
+      style: { stroke: "#6b7280", strokeWidth: 1.5, strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: "#6b7280" },
     });
   }
@@ -618,7 +621,8 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       target: groupId,
       targetHandle: "top",
       type: "smoothstep",
-      style: { stroke: "#a855f7", strokeWidth: 1.5, strokeDasharray: "6 3" },
+      animated: true,
+      style: { stroke: "#a855f7", strokeWidth: 1.5, strokeDasharray: "6 4" },
       markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "#a855f7" },
     });
 
