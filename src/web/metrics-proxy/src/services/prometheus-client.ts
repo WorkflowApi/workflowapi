@@ -5,6 +5,7 @@ export type TimeRange = (typeof VALID_RANGES)[number];
 interface PrometheusQueryResult {
   metric?: {
     activity_type?: string;
+    workflow_type?: string;
   };
   value?: [number, string];
 }
@@ -84,6 +85,55 @@ export async function queryActivityCounts(
     }
 
     counts[activityType] = Math.max(0, Math.round(value));
+  }
+
+  return counts;
+}
+
+export function buildWorkflowCountsQuery(range: TimeRange): string {
+  return `sum by(workflow_type)(increase(temporal_workflow_task_completed_total[${range}]))`;
+}
+
+export async function queryWorkflowCounts(
+  prometheusUrl: string,
+  range: TimeRange,
+): Promise<Record<string, number>> {
+  const query = buildWorkflowCountsQuery(range);
+  const queryUrl = new URL("/api/v1/query", prometheusUrl);
+  queryUrl.searchParams.set("query", query);
+
+  let response: Response;
+  try {
+    response = await fetch(queryUrl, { signal: AbortSignal.timeout(5000) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new PrometheusUnavailableError(`Prometheus unreachable: ${message}`);
+  }
+
+  if (!response.ok) {
+    throw new PrometheusUnavailableError(`Prometheus unreachable: HTTP ${response.status}`);
+  }
+
+  const payload = (await response.json()) as PrometheusApiResponse;
+  if (payload.status !== "success") {
+    throw new Error("Prometheus query failed");
+  }
+
+  const counts: Record<string, number> = {};
+  const results = payload.data?.result ?? [];
+  for (const result of results) {
+    const workflowType = result.metric?.workflow_type;
+    const valueAsString = result.value?.[1];
+    if (!workflowType || valueAsString === undefined) {
+      continue;
+    }
+
+    const value = Number.parseFloat(valueAsString);
+    if (!Number.isFinite(value)) {
+      continue;
+    }
+
+    counts[workflowType] = Math.max(0, Math.round(value));
   }
 
   return counts;

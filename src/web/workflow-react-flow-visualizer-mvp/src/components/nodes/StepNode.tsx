@@ -1,5 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
+import { ExecutionCountBadge } from "./ExecutionCountBadge";
+import { useMetrics } from "../../contexts/MetricsContext";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 const ROTATED_LABEL_STYLE = {
@@ -9,6 +11,7 @@ const ROTATED_LABEL_STYLE = {
 
 export function StepNode({ data }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
+  const { counts, isLoading, isUnavailable } = useMetrics();
   const normalizedId = (nodeData.localId ?? nodeData.id).toLowerCase();
   const isStart = normalizedId === "start" || normalizedId.endsWith("::start") || normalizedId.endsWith(":start") || normalizedId.endsWith("/start");
   const isEnd = normalizedId === "end" || normalizedId.endsWith("::end") || normalizedId.endsWith(":end") || normalizedId.endsWith("/end");
@@ -45,8 +48,18 @@ export function StepNode({ data }: NodeProps) {
     );
   }
 
+  const metricKey = typeof nodeData.activityType === "string" ? nodeData.activityType : nodeData.label;
+  const executionCount = counts[metricKey];
+
   return (
-    <div className="min-h-[3em] min-w-48 max-w-60 rounded-md border border-blue-400 bg-white text-slate-900 shadow-sm">
+    <div className="relative min-h-[3em] min-w-48 max-w-60 rounded-md border border-blue-400 bg-white text-slate-900 shadow-sm overflow-visible">
+      <div className="absolute -top-2.5 right-2.5 z-10">
+        <ExecutionCountBadge
+          count={executionCount}
+          isLoading={isLoading}
+          isUnavailable={isUnavailable}
+        />
+      </div>
       <div className="flex justify-start">
         <div className="relative flex w-5 flex-col items-center justify-end rounded-l-sm border-r border-slate-500 bg-gradient-to-b from-slate-700 to-slate-700 text-white">
           <span className="mb-4 text-center text-[9px] font-bold uppercase" style={ROTATED_LABEL_STYLE}>

@@ -7,6 +7,7 @@ import {
 
 export interface ActivityMetricsState {
   counts: Record<string, number>;
+  workflowCounts: Record<string, number>;
   isLoading: boolean;
   isUnavailable: boolean;
   errorMessage?: string;
@@ -22,6 +23,7 @@ function isAbortError(error: unknown): boolean {
 export function useActivityMetrics(range: TimeRange): ActivityMetricsState {
   const [state, setState] = useState<ActivityMetricsState>({
     counts: {},
+    workflowCounts: {},
     isLoading: true,
     isUnavailable: false,
   });
@@ -51,6 +53,7 @@ export function useActivityMetrics(range: TimeRange): ActivityMetricsState {
 
         setState({
           counts: response.counts,
+          workflowCounts: response.workflowCounts ?? {},
           isLoading: false,
           isUnavailable: false,
         });

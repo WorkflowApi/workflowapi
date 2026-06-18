@@ -1,4 +1,5 @@
 using B2B.RiskService.Activities;
+using B2B.RiskService.Metrics;
 using B2B.RiskService.Models;
 using Temporalio.Common;
 using Temporalio.Workflows;
@@ -19,22 +20,29 @@ public sealed class ExternalChecksWorkflow
     [WorkflowRun]
     public async Task<ExternalChecksResult> RunAsync(ExternalChecksRequest request)
     {
-        var sanctionsHit = await Workflow.ExecuteActivityAsync(
-            (SanctionsCheckActivity a) => a.RunAsync(request),
-            CreateActivityOptions());
-        var pepHit = await Workflow.ExecuteActivityAsync(
-            (PoliticallyExposedPersonCheckActivity a) => a.RunAsync(request),
-            CreateActivityOptions());
-        var adverseMediaHit = await Workflow.ExecuteActivityAsync(
-            (AdverseMediaCheckActivity a) => a.RunAsync(request),
-            CreateActivityOptions());
-
-        return new ExternalChecksResult
+        try
         {
-            SanctionsHit = sanctionsHit,
-            PepHit = pepHit,
-            AdverseMediaHit = adverseMediaHit,
-        };
+            var sanctionsHit = await Workflow.ExecuteActivityAsync(
+                (SanctionsCheckActivity a) => a.RunAsync(request),
+                CreateActivityOptions());
+            var pepHit = await Workflow.ExecuteActivityAsync(
+                (PoliticallyExposedPersonCheckActivity a) => a.RunAsync(request),
+                CreateActivityOptions());
+            var adverseMediaHit = await Workflow.ExecuteActivityAsync(
+                (AdverseMediaCheckActivity a) => a.RunAsync(request),
+                CreateActivityOptions());
+
+            return new ExternalChecksResult
+            {
+                SanctionsHit = sanctionsHit,
+                PepHit = pepHit,
+                AdverseMediaHit = adverseMediaHit,
+            };
+        }
+        finally
+        {
+            WorkerMetrics.RecordWorkflowExecution(nameof(ExternalChecksWorkflow));
+        }
     }
 
     private static ActivityOptions CreateActivityOptions() =>

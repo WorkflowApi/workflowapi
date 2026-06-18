@@ -1,10 +1,17 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
+import { ExecutionCountBadge } from "./ExecutionCountBadge";
+import { useMetrics } from "../../contexts/MetricsContext";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function BridgeNode({ data }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
+  const { workflowCounts, isLoading, isUnavailable } = useMetrics();
+
+  // Bridge calls execute once per parent workflow run — use parent workflow's execution count
+  const executionCount =
+    typeof nodeData.workflowRef === "string" ? workflowCounts[nodeData.workflowRef] : undefined;
 
   return (
     <div
@@ -20,6 +27,13 @@ export function BridgeNode({ data }: NodeProps) {
           </span>
           Bridge
         </span>
+      </div>
+      <div className="absolute -top-2.5 right-2.5 z-10">
+        <ExecutionCountBadge
+          count={executionCount}
+          isLoading={isLoading}
+          isUnavailable={isUnavailable}
+        />
       </div>
       <div className="px-3 pb-2.5 pt-3.5">
         <p className="text-[13px] font-semibold leading-snug">{nodeData.label}</p>

@@ -3,6 +3,7 @@ import type { ActivityMetricsState } from "../hooks/useActivityMetrics";
 
 const defaultState: ActivityMetricsState = {
   counts: {},
+  workflowCounts: {},
   isLoading: true,
   isUnavailable: false,
 };

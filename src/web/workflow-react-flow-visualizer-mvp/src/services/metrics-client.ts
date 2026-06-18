@@ -4,6 +4,7 @@ export type TimeRange = (typeof VALID_TIME_RANGES)[number];
 export interface MetricsResponse {
   range: TimeRange;
   counts: Record<string, number>;
+  workflowCounts: Record<string, number>;
   timestamp: string;
   error?: string;
 }

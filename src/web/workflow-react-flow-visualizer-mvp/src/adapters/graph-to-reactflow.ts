@@ -9,6 +9,7 @@ export interface WorkflowNodeData {
   id: string;
   localId?: string;
   activityType?: string;
+  workflowRef?: string;
   [key: string]: unknown;
 }
 
@@ -162,6 +163,8 @@ function getChildWorkflowGroupSize(cwData: ChildWorkflowExpandedData): { width: 
 interface DeferredChildWorkflowGroup {
   triggerId: string;
   cwData: ChildWorkflowExpandedData;
+  /** workflowRef of the child workflow (used as metric key for nested bridge/subflow nodes) */
+  workflowRef?: string;
 }
 
 /** Expand a child workflow group's children into nodes & edges.
@@ -171,6 +174,8 @@ function expandChildWorkflowGroup(
   cwData: ChildWorkflowExpandedData,
   nodes: Node<WorkflowNodeData>[],
   edges: Edge[],
+  /** workflowRef of the child workflow — propagated to bridge/subflow nodes as their metric key */
+  parentWorkflowRef?: string,
 ): DeferredChildWorkflowGroup[] {
   const deferred: DeferredChildWorkflowGroup[] = [];
 
@@ -221,6 +226,8 @@ function expandChildWorkflowGroup(
           description: childNode.summary,
           kind: "subflow",
           id: globalChildId,
+          // Subflows execute once per parent workflow run — use parent workflow ref as metric key
+          workflowRef: parentWorkflowRef,
         },
         position: {
           x: childPos.x - subSize.width / 2 + SUBFLOW_PADDING,
@@ -241,6 +248,7 @@ function expandChildWorkflowGroup(
           description: childNode.summary,
           kind: "childWorkflow",
           id: globalChildId,
+          workflowRef: typeof childNode.workflowRef === "string" ? childNode.workflowRef : undefined,
         },
         position: {
           x: childPos.x - SUBFLOW_CHILD_SIZE.width / 2 + SUBFLOW_PADDING,
@@ -248,7 +256,11 @@ function expandChildWorkflowGroup(
         },
       } as Node<WorkflowNodeData>);
 
-      deferred.push({ triggerId: globalChildId, cwData: childNode.childWorkflow });
+      deferred.push({
+        triggerId: globalChildId,
+        cwData: childNode.childWorkflow,
+        workflowRef: typeof childNode.workflowRef === "string" ? childNode.workflowRef : undefined,
+      });
     } else {
       // Regular node inside child workflow group
       const nodeType = mapChildNodeType(childNode.kind);
@@ -259,6 +271,8 @@ function expandChildWorkflowGroup(
         nodeType === "activity"
           ? childNode.activityRef ?? (childNode.displayName ?? childId)
           : undefined;
+      // Bridge nodes inside a child workflow group share the parent workflow's execution count
+      const workflowRef = nodeType === "bridge" ? parentWorkflowRef : undefined;
       nodes.push({
         id: globalChildId,
         type: nodeType,
@@ -269,6 +283,7 @@ function expandChildWorkflowGroup(
           kind: nodeType,
           id: globalChildId,
           activityType,
+          workflowRef,
         },
         position: {
           x: childPos.x - nodeW / 2 + SUBFLOW_PADDING,
@@ -474,13 +489,19 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
     const localId = node.raw && typeof node.raw === "object" && "localNodeId" in node.raw
       ? (node.raw.localNodeId as string)
       : undefined;
+    const rawNode = (node.raw && typeof node.raw === "object") ? node.raw as Record<string, unknown> : {};
     const activityType = node.kind === "activity" &&
-      node.raw &&
-      typeof node.raw === "object" &&
-      "activityRef" in node.raw &&
-      typeof node.raw.activityRef === "string"
-      ? node.raw.activityRef
+      typeof rawNode.activityRef === "string"
+      ? rawNode.activityRef
       : undefined;
+    // childWorkflow: workflowRef = the target workflow name
+    // bridge/subflow: workflowRef = parent workflow name (they execute once per parent run)
+    const workflowRef: string | undefined =
+      node.kind === "childWorkflow" && typeof rawNode.workflowRef === "string"
+        ? rawNode.workflowRef
+        : (node.kind === "bridge" || node.kind === "subflow") && typeof rawNode.workflowName === "string"
+          ? rawNode.workflowName
+          : undefined;
 
     if (node.kind === "subflow") {
       const subflow = getSubflowData(node);
@@ -488,7 +509,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       nodes.push({
         id: node.id,
         type: "subflow",
-        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
+        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType, workflowRef },
         position: { x: topLeftX, y: topLeftY },
         style: { width: size.width, height: size.height },
       });
@@ -509,27 +530,27 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
         nodes.push({
           id: node.id,
           type: "childWorkflow",
-          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
+          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType, workflowRef },
           position: { x: topLeftX, y: topLeftY },
         });
 
         // Defer group to be placed below the entire workflow
-        pendingGroups.push({ triggerId: node.id, cwData: cwGroup.cwData });
+        pendingGroups.push({ triggerId: node.id, cwData: cwGroup.cwData, workflowRef });
       } else {
         // No embedded data, render as simple node
         nodes.push({
           id: node.id,
           type: "childWorkflow",
-          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
+          data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType, workflowRef },
           position: { x: topLeftX, y: topLeftY },
         });
       }
     } else {
-      // Regular node
+      // Regular node (includes bridge nodes at top level)
       nodes.push({
         id: node.id,
         type: node.kind,
-        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType },
+        data: { label: node.label, description: node.description, kind: node.kind, id: node.id, localId, activityType, workflowRef },
         position: { x: topLeftX, y: topLeftY },
       });
     }
@@ -562,7 +583,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
   groupYOffset += 80;
 
   while (pendingGroups.length > 0) {
-    const { triggerId, cwData } = pendingGroups.shift()!;
+    const { triggerId, cwData, workflowRef } = pendingGroups.shift()!;
     const groupId = `${triggerId}__group`;
     const groupSize = getChildWorkflowGroupSize(cwData);
 
@@ -586,7 +607,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
       style: { width: groupSize.width, height: groupSize.height },
     });
 
-    const nestedDeferred = expandChildWorkflowGroup(groupId, cwData, nodes, edges);
+    const nestedDeferred = expandChildWorkflowGroup(groupId, cwData, nodes, edges, workflowRef);
 
     // Dashed edge from trigger (bottom) to group (top)
     edges.push({

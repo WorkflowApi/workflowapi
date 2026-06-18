@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { parseTimeRange, PrometheusUnavailableError, queryActivityCounts, } from "../services/prometheus-client.js";
+import { parseTimeRange, PrometheusUnavailableError, queryActivityCounts, queryWorkflowCounts, } from "../services/prometheus-client.js";
 export function createActivityCountsRouter(prometheusUrl) {
     const router = Router();
     router.get("/api/activity-counts", async (request, response) => {
@@ -15,10 +15,14 @@ export function createActivityCountsRouter(prometheusUrl) {
             return;
         }
         try {
-            const counts = await queryActivityCounts(prometheusUrl, range);
+            const [counts, workflowCounts] = await Promise.all([
+                queryActivityCounts(prometheusUrl, range),
+                queryWorkflowCounts(prometheusUrl, range),
+            ]);
             response.json({
                 range,
                 counts,
+                workflowCounts,
                 timestamp: new Date().toISOString(),
             });
             return;
@@ -28,6 +32,7 @@ export function createActivityCountsRouter(prometheusUrl) {
                 response.status(503).json({
                     range,
                     counts: {},
+                    workflowCounts: {},
                     timestamp: new Date().toISOString(),
                     error: error.message,
                 });
@@ -36,6 +41,7 @@ export function createActivityCountsRouter(prometheusUrl) {
             response.status(500).json({
                 range,
                 counts: {},
+                workflowCounts: {},
                 timestamp: new Date().toISOString(),
                 error: error instanceof Error ? error.message : "Unexpected error",
             });

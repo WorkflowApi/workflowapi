@@ -1,4 +1,5 @@
 using B2B.RiskService.Activities;
+using B2B.RiskService.Metrics;
 using B2B.RiskService.Models;
 using Temporalio.Common;
 using Temporalio.Workflows;
@@ -19,39 +20,46 @@ public sealed class CalculateRiskWorkflow
     [WorkflowRun]
     public async Task<RiskScoreResult> RunAsync(CalculateRiskRequest request)
     {
-        var paymentHistoryTask = Workflow.ExecuteActivityAsync(
-            (FetchPaymentHistoryActivity a) => a.RunAsync(request.CompanyId),
-            CreateActivityOptions());
-        var creditLimitTask = Workflow.ExecuteActivityAsync(
-            (FetchCreditLimitActivity a) => a.RunAsync(request.CompanyId),
-            CreateActivityOptions());
+        try
+        {
+            var paymentHistoryTask = Workflow.ExecuteActivityAsync(
+                (FetchPaymentHistoryActivity a) => a.RunAsync(request.CompanyId),
+                CreateActivityOptions());
+            var creditLimitTask = Workflow.ExecuteActivityAsync(
+                (FetchCreditLimitActivity a) => a.RunAsync(request.CompanyId),
+                CreateActivityOptions());
 
-        await Task.WhenAll(paymentHistoryTask, creditLimitTask);
+            await Task.WhenAll(paymentHistoryTask, creditLimitTask);
 
-        var normalisedSignals = await Workflow.ExecuteActivityAsync(
-            (NormaliseRiskSignalsActivity a) => a.RunAsync(
-                new NormaliseRiskSignalsRequest(paymentHistoryTask.Result, creditLimitTask.Result)),
-            CreateActivityOptions());
+            var normalisedSignals = await Workflow.ExecuteActivityAsync(
+                (NormaliseRiskSignalsActivity a) => a.RunAsync(
+                    new NormaliseRiskSignalsRequest(paymentHistoryTask.Result, creditLimitTask.Result)),
+                CreateActivityOptions());
 
-        var score = await Workflow.ExecuteActivityAsync(
-            (ScoreCompanyRiskActivity a) => a.RunAsync(normalisedSignals),
-            CreateActivityOptions());
+            var score = await Workflow.ExecuteActivityAsync(
+                (ScoreCompanyRiskActivity a) => a.RunAsync(normalisedSignals),
+                CreateActivityOptions());
 
-        var externalChecks = await Workflow.ExecuteChildWorkflowAsync(
-            (ExternalChecksWorkflow wf) => wf.RunAsync(new ExternalChecksRequest
-            {
-                CompanyId = request.CompanyId,
-                Country = "DE",
-            }),
-            new ChildWorkflowOptions
-            {
-                TaskQueue = "risk-enrichment",
-            });
+            var externalChecks = await Workflow.ExecuteChildWorkflowAsync(
+                (ExternalChecksWorkflow wf) => wf.RunAsync(new ExternalChecksRequest
+                {
+                    CompanyId = request.CompanyId,
+                    Country = "DE",
+                }),
+                new ChildWorkflowOptions
+                {
+                    TaskQueue = "risk-enrichment",
+                });
 
-        return await Workflow.ExecuteActivityAsync(
-            (AggregateRiskScoreActivity a) => a.RunAsync(
-                new AggregateRiskScoreRequest(score, externalChecks)),
-            CreateActivityOptions());
+            return await Workflow.ExecuteActivityAsync(
+                (AggregateRiskScoreActivity a) => a.RunAsync(
+                    new AggregateRiskScoreRequest(score, externalChecks)),
+                CreateActivityOptions());
+        }
+        finally
+        {
+            WorkerMetrics.RecordWorkflowExecution(nameof(CalculateRiskWorkflow));
+        }
     }
 
     private static ActivityOptions CreateActivityOptions() =>

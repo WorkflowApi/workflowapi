@@ -3,6 +3,7 @@ import {
   parseTimeRange,
   PrometheusUnavailableError,
   queryActivityCounts,
+  queryWorkflowCounts,
 } from "../services/prometheus-client.js";
 
 export function createActivityCountsRouter(prometheusUrl: string): Router {
@@ -22,10 +23,14 @@ export function createActivityCountsRouter(prometheusUrl: string): Router {
     }
 
     try {
-      const counts = await queryActivityCounts(prometheusUrl, range);
+      const [counts, workflowCounts] = await Promise.all([
+        queryActivityCounts(prometheusUrl, range),
+        queryWorkflowCounts(prometheusUrl, range),
+      ]);
       response.json({
         range,
         counts,
+        workflowCounts,
         timestamp: new Date().toISOString(),
       });
       return;
@@ -34,6 +39,7 @@ export function createActivityCountsRouter(prometheusUrl: string): Router {
         response.status(503).json({
           range,
           counts: {},
+          workflowCounts: {},
           timestamp: new Date().toISOString(),
           error: error.message,
         });
@@ -43,6 +49,7 @@ export function createActivityCountsRouter(prometheusUrl: string): Router {
       response.status(500).json({
         range,
         counts: {},
+        workflowCounts: {},
         timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : "Unexpected error",
       });

@@ -1,4 +1,5 @@
 using B2B.RiskService.Activities;
+using B2B.RiskService.Metrics;
 using B2B.RiskService.Models;
 using System.Text.Json.Serialization;
 using Temporalio.Common;
@@ -30,68 +31,75 @@ public sealed class RiskEnrichmentWorkflow
     [WorkflowRun]
     public async Task<RiskEnrichmentResult> RunAsync(RiskEnrichmentRequest request)
     {
-        SetState("running", "identify-company");
-        var identified = await Workflow.ExecuteActivityAsync(
-            (IdentifyCompanyActivity a) => a.RunAsync(request),
-            CreateActivityOptions());
-        if (cancelRequested)
+        try
         {
-            return CreateCancelledResult(identified.CompanyId);
-        }
+            SetState("running", "identify-company");
+            var identified = await Workflow.ExecuteActivityAsync(
+                (IdentifyCompanyActivity a) => a.RunAsync(request),
+                CreateActivityOptions());
+            if (cancelRequested)
+            {
+                return CreateCancelledResult(identified.CompanyId);
+            }
 
-        SetState("running", "enrich-dnb-data");
-        var dnb = await Workflow.ExecuteActivityAsync(
-            (EnrichDnbActivity a) => a.RunAsync(identified),
-            CreateActivityOptions());
-        if (cancelRequested)
-        {
-            return CreateCancelledResult(identified.CompanyId);
-        }
+            SetState("running", "enrich-dnb-data");
+            var dnb = await Workflow.ExecuteActivityAsync(
+                (EnrichDnbActivity a) => a.RunAsync(identified),
+                CreateActivityOptions());
+            if (cancelRequested)
+            {
+                return CreateCancelledResult(identified.CompanyId);
+            }
 
-        SetState("running", "calculate-risk");
-        var risk = await Workflow.ExecuteChildWorkflowAsync(
-            (CalculateRiskWorkflow wf) => wf.RunAsync(new CalculateRiskRequest
+            SetState("running", "calculate-risk");
+            var risk = await Workflow.ExecuteChildWorkflowAsync(
+                (CalculateRiskWorkflow wf) => wf.RunAsync(new CalculateRiskRequest
+                {
+                    CompanyId = identified.CompanyId,
+                    Duns = identified.Duns,
+                }),
+                new ChildWorkflowOptions
+                {
+                    TaskQueue = "risk-enrichment",
+                });
+            if (cancelRequested)
+            {
+                return CreateCancelledResult(identified.CompanyId);
+            }
+
+            SetState("running", "document-pdf");
+            var pdfInput = identified with
+            {
+                CompanyName = dnb.LegalName,
+            };
+            var documentId = await Workflow.ExecuteActivityAsync(
+                (GeneratePdfActivity a) => a.RunAsync(pdfInput, risk.RiskClass ?? "unknown"),
+                CreateActivityOptions());
+            if (cancelRequested)
+            {
+                return CreateCancelledResult(identified.CompanyId);
+            }
+
+            var result = new RiskEnrichmentResult
             {
                 CompanyId = identified.CompanyId,
-                Duns = identified.Duns,
-            }),
-            new ChildWorkflowOptions
-            {
-                TaskQueue = "risk-enrichment",
-            });
-        if (cancelRequested)
-        {
-            return CreateCancelledResult(identified.CompanyId);
+                RiskClass = risk.RiskClass ?? "medium",
+                Status = "completed",
+                DocumentId = documentId,
+            };
+
+            SetState("running", "publish-result");
+            _ = await Workflow.ExecuteActivityAsync(
+                (PublishRiskResultActivity a) => a.RunAsync(result),
+                CreateActivityOptions());
+
+            SetState("completed", "end");
+            return result;
         }
-
-        SetState("running", "document-pdf");
-        var pdfInput = identified with
+        finally
         {
-            CompanyName = dnb.LegalName,
-        };
-        var documentId = await Workflow.ExecuteActivityAsync(
-            (GeneratePdfActivity a) => a.RunAsync(pdfInput, risk.RiskClass ?? "unknown"),
-            CreateActivityOptions());
-        if (cancelRequested)
-        {
-            return CreateCancelledResult(identified.CompanyId);
+            WorkerMetrics.RecordWorkflowExecution(nameof(RiskEnrichmentWorkflow));
         }
-
-        var result = new RiskEnrichmentResult
-        {
-            CompanyId = identified.CompanyId,
-            RiskClass = risk.RiskClass ?? "medium",
-            Status = "completed",
-            DocumentId = documentId,
-        };
-
-        SetState("running", "publish-result");
-        _ = await Workflow.ExecuteActivityAsync(
-            (PublishRiskResultActivity a) => a.RunAsync(result),
-            CreateActivityOptions());
-
-        SetState("completed", "end");
-        return result;
     }
 
     /// <summary>

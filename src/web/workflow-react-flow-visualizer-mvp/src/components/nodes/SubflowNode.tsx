@@ -1,13 +1,20 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
+import { ExecutionCountBadge } from "./ExecutionCountBadge";
+import { useMetrics } from "../../contexts/MetricsContext";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function SubflowNode({ data }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
+  const { workflowCounts, isLoading, isUnavailable } = useMetrics();
+
+  // Subflow nodes carry no workflowRef — lookup resolves to undefined → badge renders "–"
+  const executionCount =
+    typeof nodeData.workflowRef === "string" ? workflowCounts[nodeData.workflowRef] : undefined;
 
   return (
-    <div className="h-full w-full rounded-xl border-2 border-dashed border-teal-400 bg-teal-50/40 overflow-visible">
+    <div className="relative h-full w-full rounded-xl border-2 border-dashed border-teal-400 bg-teal-50/40 overflow-visible">
       <Handle type="target" position={Position.Left} style={HIDDEN_HANDLE_STYLE} />
       <Handle type="source" position={Position.Right} style={HIDDEN_HANDLE_STYLE} />
       <div className="absolute -top-2.5 left-2.5 z-10">
@@ -15,6 +22,13 @@ export function SubflowNode({ data }: NodeProps) {
           <span aria-hidden className="mr-1 text-[8px]">↻</span>
           Subflow
         </span>
+      </div>
+      <div className="absolute -top-2.5 right-2.5 z-10">
+        <ExecutionCountBadge
+          count={executionCount}
+          isLoading={isLoading}
+          isUnavailable={isUnavailable}
+        />
       </div>
       <div className="px-3 pt-3">
         <p className="text-[11px] font-semibold text-teal-800">{nodeData.label}</p>
