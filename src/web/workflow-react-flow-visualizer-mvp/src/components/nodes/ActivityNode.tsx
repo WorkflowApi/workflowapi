@@ -1,15 +1,16 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
 import { ExecutionCountBadge } from "./ExecutionCountBadge";
+import { useMetrics } from "../../contexts/MetricsContext";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function ActivityNode({ data }: NodeProps) {
-  const nodeData = data as WorkflowNodeData & {
-    executionCount?: number;
-    metricsLoading?: boolean;
-    metricsUnavailable?: boolean;
-  };
+  const nodeData = data as WorkflowNodeData;
+  const { counts, isLoading, isUnavailable } = useMetrics();
+
+  const activityType = typeof nodeData.activityType === "string" ? nodeData.activityType : undefined;
+  const executionCount = activityType ? counts[activityType] : undefined;
 
   return (
     <div
@@ -28,9 +29,9 @@ export function ActivityNode({ data }: NodeProps) {
       </div>
       <div className="absolute -top-2.5 right-2.5 z-10">
         <ExecutionCountBadge
-          count={nodeData.executionCount}
-          isLoading={Boolean(nodeData.metricsLoading)}
-          isUnavailable={Boolean(nodeData.metricsUnavailable)}
+          count={executionCount}
+          isLoading={isLoading}
+          isUnavailable={isUnavailable}
         />
       </div>
       <div className="px-3 pb-2.5 pt-3.5">

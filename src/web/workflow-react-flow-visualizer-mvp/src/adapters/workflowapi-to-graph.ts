@@ -38,7 +38,7 @@ function resolveSubflowRef(
 interface ChildWorkflowData {
   displayName: string;
   summary?: string;
-  nodes: Record<string, { kind: string; displayName?: string; summary?: string; workflowRef?: string; subflowRef?: string }>;
+  nodes: Record<string, { kind: string; displayName?: string; summary?: string; activityRef?: string; workflowRef?: string; subflowRef?: string }>;
   edges: Array<{ from: string; to: string }>;
 }
 
@@ -56,6 +56,7 @@ function resolveChildWorkflow(
       kind: node.kind,
       displayName: node.displayName,
       summary: node.summary,
+      activityRef: node.activityRef,
       workflowRef: node.workflowRef,
       subflowRef: node.subflowRef,
     };

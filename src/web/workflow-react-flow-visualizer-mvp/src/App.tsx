@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { WorkflowVisualizer } from "./components/WorkflowVisualizer";
 import { TimeRangeSelector } from "./components/TimeRangeSelector";
 import { riskEnrichmentDocument } from "./data/risk-enrichment";
 import { workflowApiToGraph } from "./adapters/workflowapi-to-graph";
 import { useActivityMetrics } from "./hooks/useActivityMetrics";
+import { MetricsContext } from "./contexts/MetricsContext";
 import type { TimeRange } from "./services/metrics-client";
 
 function App() {
   const [timeRange, setTimeRange] = useState<TimeRange>("1d");
   const activityMetrics = useActivityMetrics(timeRange);
-  const graph = workflowApiToGraph(riskEnrichmentDocument);
+  const graph = useMemo(() => workflowApiToGraph(riskEnrichmentDocument), []);
 
   return (
     <main className="min-h-screen bg-slate-50 p-6 text-slate-900">
@@ -18,12 +19,9 @@ function App() {
         <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
       </div>
       <div className="h-[70vh] rounded-lg border border-slate-200 bg-white shadow-sm">
-        <WorkflowVisualizer
-          graph={graph}
-          activityCounts={activityMetrics.counts}
-          metricsLoading={activityMetrics.isLoading}
-          metricsUnavailable={activityMetrics.isUnavailable}
-        />
+        <MetricsContext.Provider value={activityMetrics}>
+          <WorkflowVisualizer graph={graph} />
+        </MetricsContext.Provider>
       </div>
       <p className="mt-4 text-sm text-slate-600">
         {graph.nodes.length} nodes · {graph.edges.length} edges
