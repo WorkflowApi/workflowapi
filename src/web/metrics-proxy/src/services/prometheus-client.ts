@@ -138,3 +138,103 @@ export async function queryWorkflowCounts(
 
   return counts;
 }
+
+// Returns p95 latency in seconds per activity_type.
+export function buildActivityP95Query(range: TimeRange): string {
+  return `histogram_quantile(0.95, sum by(le, activity_type)(rate(temporal_activity_schedule_to_close_latency_seconds_bucket[${range}])))`;
+}
+
+export async function queryActivityP95Latencies(
+  prometheusUrl: string,
+  range: TimeRange,
+): Promise<Record<string, number>> {
+  const query = buildActivityP95Query(range);
+  const queryUrl = new URL("/api/v1/query", prometheusUrl);
+  queryUrl.searchParams.set("query", query);
+
+  let response: Response;
+  try {
+    response = await fetch(queryUrl, { signal: AbortSignal.timeout(5000) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new PrometheusUnavailableError(`Prometheus unreachable: ${message}`);
+  }
+
+  if (!response.ok) {
+    throw new PrometheusUnavailableError(`Prometheus unreachable: HTTP ${response.status}`);
+  }
+
+  const payload = (await response.json()) as PrometheusApiResponse;
+  if (payload.status !== "success") {
+    throw new Error("Prometheus query failed");
+  }
+
+  const latencies: Record<string, number> = {};
+  const results = payload.data?.result ?? [];
+  for (const result of results) {
+    const activityType = result.metric?.activity_type;
+    const valueAsString = result.value?.[1];
+    if (!activityType || valueAsString === undefined) {
+      continue;
+    }
+
+    const value = Number.parseFloat(valueAsString);
+    if (!Number.isFinite(value) || value < 0) {
+      continue;
+    }
+
+    latencies[activityType] = value;
+  }
+
+  return latencies;
+}
+
+// Returns p95 latency in seconds per workflow_type.
+export function buildWorkflowP95Query(range: TimeRange): string {
+  return `histogram_quantile(0.95, sum by(le, workflow_type)(rate(temporal_workflow_e2e_latency_seconds_bucket[${range}])))`;
+}
+
+export async function queryWorkflowP95Latencies(
+  prometheusUrl: string,
+  range: TimeRange,
+): Promise<Record<string, number>> {
+  const query = buildWorkflowP95Query(range);
+  const queryUrl = new URL("/api/v1/query", prometheusUrl);
+  queryUrl.searchParams.set("query", query);
+
+  let response: Response;
+  try {
+    response = await fetch(queryUrl, { signal: AbortSignal.timeout(5000) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new PrometheusUnavailableError(`Prometheus unreachable: ${message}`);
+  }
+
+  if (!response.ok) {
+    throw new PrometheusUnavailableError(`Prometheus unreachable: HTTP ${response.status}`);
+  }
+
+  const payload = (await response.json()) as PrometheusApiResponse;
+  if (payload.status !== "success") {
+    throw new Error("Prometheus query failed");
+  }
+
+  const latencies: Record<string, number> = {};
+  const results = payload.data?.result ?? [];
+  for (const result of results) {
+    const workflowType = result.metric?.workflow_type;
+    const valueAsString = result.value?.[1];
+    if (!workflowType || valueAsString === undefined) {
+      continue;
+    }
+
+    const value = Number.parseFloat(valueAsString);
+    if (!Number.isFinite(value) || value < 0) {
+      continue;
+    }
+
+    latencies[workflowType] = value;
+  }
+
+  return latencies;
+}

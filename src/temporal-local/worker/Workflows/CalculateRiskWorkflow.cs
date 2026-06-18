@@ -20,6 +20,7 @@ public sealed class CalculateRiskWorkflow
     [WorkflowRun]
     public async Task<RiskScoreResult> RunAsync(CalculateRiskRequest request)
     {
+        var startedAt = Workflow.UtcNow;
         try
         {
             var paymentHistoryTask = Workflow.ExecuteActivityAsync(
@@ -59,6 +60,7 @@ public sealed class CalculateRiskWorkflow
         finally
         {
             WorkerMetrics.RecordWorkflowExecution(nameof(CalculateRiskWorkflow));
+            WorkerMetrics.RecordWorkflowLatency(nameof(CalculateRiskWorkflow), (Workflow.UtcNow - startedAt).TotalSeconds);
         }
     }
 

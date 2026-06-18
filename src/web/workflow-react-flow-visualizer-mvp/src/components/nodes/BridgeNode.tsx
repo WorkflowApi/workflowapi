@@ -7,11 +7,13 @@ const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function BridgeNode({ data, selected }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
-  const { workflowCounts, isLoading, isUnavailable } = useMetrics();
+  const { workflowCounts, workflowP95Latencies, isLoading, isUnavailable } = useMetrics();
 
   // Bridge calls execute once per parent workflow run — use parent workflow's execution count
   const executionCount =
     typeof nodeData.workflowRef === "string" ? workflowCounts[nodeData.workflowRef] : undefined;
+  const p95Seconds =
+    typeof nodeData.workflowRef === "string" ? workflowP95Latencies[nodeData.workflowRef] : undefined;
 
   return (
     <div
@@ -39,6 +41,7 @@ export function BridgeNode({ data, selected }: NodeProps) {
         ) : null}
         <RunCountLabel
           count={executionCount}
+          p95Seconds={p95Seconds}
           isLoading={isLoading}
           isUnavailable={isUnavailable}
           className="mt-1.5 text-[10px] font-medium text-slate-500"

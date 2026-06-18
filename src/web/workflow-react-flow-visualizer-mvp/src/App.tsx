@@ -94,9 +94,6 @@ function App() {
           ) : null}
         </MetricsContext.Provider>
       </div>
-      <p className="mt-4 text-sm text-slate-600">
-        {graph.nodes.length} nodes · {graph.edges.length} edges
-      </p>
       {activityMetrics.isUnavailable ? (
         <p className="mt-2 text-sm text-amber-700">
           Run counters are currently unavailable ({activityMetrics.errorMessage ?? "temporary error"}).

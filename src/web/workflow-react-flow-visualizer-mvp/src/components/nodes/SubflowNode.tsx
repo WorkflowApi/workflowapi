@@ -7,11 +7,13 @@ const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function SubflowNode({ data }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
-  const { workflowCounts, isLoading, isUnavailable } = useMetrics();
+  const { workflowCounts, workflowP95Latencies, isLoading, isUnavailable } = useMetrics();
 
   // Subflow nodes use workflowRef when available (propagated in graph adapter)
   const executionCount =
     typeof nodeData.workflowRef === "string" ? workflowCounts[nodeData.workflowRef] : undefined;
+  const p95Seconds =
+    typeof nodeData.workflowRef === "string" ? workflowP95Latencies[nodeData.workflowRef] : undefined;
 
   return (
     <div className="relative h-full w-full rounded-xl border-2 border-dashed border-teal-400 bg-teal-50/40 overflow-visible">
@@ -30,6 +32,7 @@ export function SubflowNode({ data }: NodeProps) {
         ) : null}
         <RunCountLabel
           count={executionCount}
+          p95Seconds={p95Seconds}
           isLoading={isLoading}
           isUnavailable={isUnavailable}
           className="mt-1 text-[9px] font-medium text-teal-700/70"

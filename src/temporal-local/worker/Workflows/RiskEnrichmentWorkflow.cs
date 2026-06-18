@@ -31,6 +31,7 @@ public sealed class RiskEnrichmentWorkflow
     [WorkflowRun]
     public async Task<RiskEnrichmentResult> RunAsync(RiskEnrichmentRequest request)
     {
+        var startedAt = Workflow.UtcNow;
         try
         {
             SetState("running", "identify-company");
@@ -99,6 +100,7 @@ public sealed class RiskEnrichmentWorkflow
         finally
         {
             WorkerMetrics.RecordWorkflowExecution(nameof(RiskEnrichmentWorkflow));
+            WorkerMetrics.RecordWorkflowLatency(nameof(RiskEnrichmentWorkflow), (Workflow.UtcNow - startedAt).TotalSeconds);
         }
     }
 

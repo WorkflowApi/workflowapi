@@ -7,10 +7,11 @@ const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function ActivityNode({ data, selected }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
-  const { counts, isLoading, isUnavailable } = useMetrics();
+  const { counts, p95Latencies, isLoading, isUnavailable } = useMetrics();
 
   const activityType = typeof nodeData.activityType === "string" ? nodeData.activityType : undefined;
   const executionCount = activityType ? counts[activityType] : undefined;
+  const p95Seconds = activityType ? p95Latencies[activityType] : undefined;
 
   return (
     <div
@@ -38,6 +39,7 @@ export function ActivityNode({ data, selected }: NodeProps) {
         ) : null}
         <RunCountLabel
           count={executionCount}
+          p95Seconds={p95Seconds}
           isLoading={isLoading}
           isUnavailable={isUnavailable}
           className="mt-1.5 text-[10px] font-medium text-slate-500"

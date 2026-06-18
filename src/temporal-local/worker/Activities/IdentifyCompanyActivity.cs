@@ -1,5 +1,6 @@
 using B2B.RiskService.Models;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -17,6 +18,7 @@ public sealed class IdentifyCompanyActivity
     [Activity("IdentifyCompanyActivity")]
     public async Task<RiskEnrichmentRequest> RunAsync(RiskEnrichmentRequest request)
     {
+        var sw = Stopwatch.StartNew();
         await ActivityExecutionHelper.DelayAsync(500, 1000);
 
         var result = request with
@@ -26,7 +28,7 @@ public sealed class IdentifyCompanyActivity
                 : request.Duns,
         };
 
-        WorkerMetrics.RecordActivityExecution(nameof(IdentifyCompanyActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(IdentifyCompanyActivity), sw.Elapsed.TotalSeconds);
         return result;
     }
 }

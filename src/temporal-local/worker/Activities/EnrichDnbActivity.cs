@@ -1,5 +1,6 @@
 using B2B.RiskService.Models;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -17,6 +18,7 @@ public sealed class EnrichDnbActivity
     [Activity("EnrichDnbActivity")]
     public async Task<DnbEnrichmentResult> RunAsync(RiskEnrichmentRequest request)
     {
+        var sw = Stopwatch.StartNew();
         ActivityExecutionHelper.MaybeFail(nameof(EnrichDnbActivity));
         await ActivityExecutionHelper.DelayAsync(1000, 2000);
 
@@ -25,7 +27,7 @@ public sealed class EnrichDnbActivity
             : request.CompanyName;
 
         var creditLimit = Random.Shared.Next(100_000, 5_000_000);
-        WorkerMetrics.RecordActivityExecution(nameof(EnrichDnbActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(EnrichDnbActivity), sw.Elapsed.TotalSeconds);
 
         return new DnbEnrichmentResult(legalName, creditLimit);
     }

@@ -1,5 +1,6 @@
 using Temporalio.Activities;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 
 namespace B2B.RiskService.Activities;
 
@@ -16,10 +17,11 @@ public sealed class FetchCreditLimitActivity
     [Activity("FetchCreditLimitActivity")]
     public async Task<decimal> RunAsync(string? companyId)
     {
+        var sw = Stopwatch.StartNew();
         _ = companyId;
         await ActivityExecutionHelper.DelayAsync(500, 1000);
         var limit = Random.Shared.Next(10_000, 1_000_001);
-        WorkerMetrics.RecordActivityExecution(nameof(FetchCreditLimitActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(FetchCreditLimitActivity), sw.Elapsed.TotalSeconds);
         return limit;
     }
 }

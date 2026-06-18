@@ -20,6 +20,7 @@ public sealed class ExternalChecksWorkflow
     [WorkflowRun]
     public async Task<ExternalChecksResult> RunAsync(ExternalChecksRequest request)
     {
+        var startedAt = Workflow.UtcNow;
         try
         {
             var sanctionsHit = await Workflow.ExecuteActivityAsync(
@@ -42,6 +43,7 @@ public sealed class ExternalChecksWorkflow
         finally
         {
             WorkerMetrics.RecordWorkflowExecution(nameof(ExternalChecksWorkflow));
+            WorkerMetrics.RecordWorkflowLatency(nameof(ExternalChecksWorkflow), (Workflow.UtcNow - startedAt).TotalSeconds);
         }
     }
 

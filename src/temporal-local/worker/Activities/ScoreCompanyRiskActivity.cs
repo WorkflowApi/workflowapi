@@ -1,5 +1,6 @@
 using Temporalio.Activities;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 
 namespace B2B.RiskService.Activities;
 
@@ -16,6 +17,7 @@ public sealed class ScoreCompanyRiskActivity
     [Activity("ScoreCompanyRiskActivity")]
     public async Task<double> RunAsync(NormalisedSignals signals)
     {
+        var sw = Stopwatch.StartNew();
         await ActivityExecutionHelper.DelayAsync(800, 1500);
 
         var composite =
@@ -26,7 +28,7 @@ public sealed class ScoreCompanyRiskActivity
         var noisy = composite + ((Random.Shared.NextDouble() - 0.5d) * 0.15d);
         var scaled = Math.Clamp(noisy, 0d, 1d) * 100d;
         var score = Math.Round(scaled, 2, MidpointRounding.AwayFromZero);
-        WorkerMetrics.RecordActivityExecution(nameof(ScoreCompanyRiskActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(ScoreCompanyRiskActivity), sw.Elapsed.TotalSeconds);
         return score;
     }
 }

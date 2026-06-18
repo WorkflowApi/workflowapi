@@ -1,5 +1,6 @@
 using Temporalio.Activities;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 
 namespace B2B.RiskService.Activities;
 
@@ -16,6 +17,7 @@ public sealed class NormaliseRiskSignalsActivity
     [Activity("NormaliseRiskSignalsActivity")]
     public async Task<NormalisedSignals> RunAsync(NormaliseRiskSignalsRequest request)
     {
+        var sw = Stopwatch.StartNew();
         await ActivityExecutionHelper.DelayAsync(200, 500);
 
         var paymentBehaviour = 1d - Math.Clamp(request.PaymentHistory.PaymentCount / 40d, 0d, 1d);
@@ -23,7 +25,7 @@ public sealed class NormaliseRiskSignalsActivity
         var externalRisk = Math.Clamp((double)(request.PaymentHistory.TotalAmount / 2_000_000m), 0d, 1d);
 
         var signals = new NormalisedSignals(paymentBehaviour, creditExposure, externalRisk);
-        WorkerMetrics.RecordActivityExecution(nameof(NormaliseRiskSignalsActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(NormaliseRiskSignalsActivity), sw.Elapsed.TotalSeconds);
         return signals;
     }
 }

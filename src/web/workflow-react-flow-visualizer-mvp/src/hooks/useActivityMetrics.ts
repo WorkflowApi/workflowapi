@@ -8,6 +8,8 @@ import {
 export interface ActivityMetricsState {
   counts: Record<string, number>;
   workflowCounts: Record<string, number>;
+  p95Latencies: Record<string, number>;
+  workflowP95Latencies: Record<string, number>;
   isLoading: boolean;
   isUnavailable: boolean;
   errorMessage?: string;
@@ -24,6 +26,8 @@ export function useActivityMetrics(range: TimeRange): ActivityMetricsState {
   const [state, setState] = useState<ActivityMetricsState>({
     counts: {},
     workflowCounts: {},
+    p95Latencies: {},
+    workflowP95Latencies: {},
     isLoading: true,
     isUnavailable: false,
   });
@@ -54,6 +58,8 @@ export function useActivityMetrics(range: TimeRange): ActivityMetricsState {
         setState({
           counts: response.counts,
           workflowCounts: response.workflowCounts ?? {},
+          p95Latencies: response.p95Latencies ?? {},
+          workflowP95Latencies: response.workflowP95Latencies ?? {},
           isLoading: false,
           isUnavailable: false,
         });

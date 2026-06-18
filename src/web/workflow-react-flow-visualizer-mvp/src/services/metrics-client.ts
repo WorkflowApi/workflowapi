@@ -5,6 +5,8 @@ export interface MetricsResponse {
   range: TimeRange;
   counts: Record<string, number>;
   workflowCounts: Record<string, number>;
+  p95Latencies: Record<string, number>;
+  workflowP95Latencies: Record<string, number>;
   timestamp: string;
   error?: string;
 }

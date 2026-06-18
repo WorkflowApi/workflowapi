@@ -6,6 +6,14 @@ interface NodeDetailPanelProps {
   onClose: () => void;
 }
 
+function formatLatency(seconds: number): string {
+  const ms = seconds * 1000;
+  if (ms < 10_000) {
+    return `${Math.round(ms).toLocaleString("en-US")} ms`;
+  }
+  return `${seconds.toFixed(1)} s`;
+}
+
 function getRawString(node: WorkflowGraphNode, key: string): string | undefined {
   if (!node.raw || typeof node.raw !== "object") return undefined;
   const value = (node.raw as Record<string, unknown>)[key];
@@ -38,7 +46,7 @@ function DetailRow({ label, value }: { label: string; value: string }): JSX.Elem
 }
 
 export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
-  const { counts, workflowCounts, isLoading, isUnavailable } = useMetrics();
+  const { counts, workflowCounts, p95Latencies, workflowP95Latencies, isLoading, isUnavailable } = useMetrics();
 
   if (!node) {
     return null;
@@ -65,7 +73,14 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
         ? workflowCounts[workflowMetricRef]
         : undefined;
 
-  const hasMetrics = !isUnavailable && (isLoading || metricCount !== undefined);
+  const p95Seconds =
+    typeof activityType === "string"
+      ? p95Latencies[activityType]
+      : typeof workflowMetricRef === "string"
+        ? workflowP95Latencies[workflowMetricRef]
+        : undefined;
+
+  const hasMetrics = !isUnavailable && (isLoading || metricCount !== undefined || p95Seconds !== undefined);
 
   return (
     <section
@@ -110,11 +125,28 @@ export function NodeDetailPanel({ node, onClose }: NodeDetailPanelProps) {
 
       {hasMetrics ? (
         <div className="mt-4 rounded border border-slate-200 p-3">
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Runs</h3>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Run Counter</h3>
           {isLoading ? (
-            <p className="text-sm text-slate-600">Loading...</p>
+            <p className="text-sm text-slate-600">Loading…</p>
           ) : (
-            <p className="text-sm text-slate-800">{metricCount?.toLocaleString("en-US")}</p>
+            <div className="divide-y divide-slate-200">
+              {metricCount !== undefined ? (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-slate-600">Runs</span>
+                  <span className="text-sm font-medium text-slate-800">
+                    {metricCount.toLocaleString("en-US")}
+                  </span>
+                </div>
+              ) : null}
+              {p95Seconds !== undefined ? (
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm text-slate-600">p95 Latency</span>
+                  <span className="text-sm font-medium text-slate-800">
+                    {formatLatency(p95Seconds)}
+                  </span>
+                </div>
+              ) : null}
+            </div>
           )}
         </div>
       ) : null}

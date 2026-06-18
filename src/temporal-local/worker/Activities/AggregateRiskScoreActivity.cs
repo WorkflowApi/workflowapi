@@ -1,5 +1,6 @@
 using B2B.RiskService.Models;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -17,6 +18,7 @@ public sealed class AggregateRiskScoreActivity
     [Activity("AggregateRiskScoreActivity")]
     public async Task<RiskScoreResult> RunAsync(AggregateRiskScoreRequest request)
     {
+        var sw = Stopwatch.StartNew();
         await ActivityExecutionHelper.DelayAsync(300, 600);
 
         var adjusted = request.BaseScore;
@@ -43,7 +45,7 @@ public sealed class AggregateRiskScoreActivity
             RiskClass = riskClass,
         };
 
-        WorkerMetrics.RecordActivityExecution(nameof(AggregateRiskScoreActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(AggregateRiskScoreActivity), sw.Elapsed.TotalSeconds);
         return result;
     }
 }

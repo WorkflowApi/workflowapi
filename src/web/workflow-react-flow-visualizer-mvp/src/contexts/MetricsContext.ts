@@ -4,6 +4,8 @@ import type { ActivityMetricsState } from "../hooks/useActivityMetrics";
 const defaultState: ActivityMetricsState = {
   counts: {},
   workflowCounts: {},
+  p95Latencies: {},
+  workflowP95Latencies: {},
   isLoading: true,
   isUnavailable: false,
 };

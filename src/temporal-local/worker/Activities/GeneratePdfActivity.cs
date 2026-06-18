@@ -1,5 +1,6 @@
 using B2B.RiskService.Models;
 using B2B.RiskService.Metrics;
+using System.Diagnostics;
 using Temporalio.Activities;
 
 namespace B2B.RiskService.Activities;
@@ -18,12 +19,13 @@ public sealed class GeneratePdfActivity
     [Activity("GeneratePdfActivity")]
     public async Task<string> RunAsync(RiskEnrichmentRequest request, string riskClass)
     {
+        var sw = Stopwatch.StartNew();
         _ = request;
         _ = riskClass;
         ActivityExecutionHelper.MaybeFail(nameof(GeneratePdfActivity));
         await ActivityExecutionHelper.DelayAsync(1500, 2000);
         var documentId = Guid.NewGuid().ToString();
-        WorkerMetrics.RecordActivityExecution(nameof(GeneratePdfActivity));
+        WorkerMetrics.RecordActivityExecution(nameof(GeneratePdfActivity), sw.Elapsed.TotalSeconds);
         return documentId;
     }
 }

@@ -3,7 +3,9 @@ import {
   parseTimeRange,
   PrometheusUnavailableError,
   queryActivityCounts,
+  queryActivityP95Latencies,
   queryWorkflowCounts,
+  queryWorkflowP95Latencies,
 } from "../services/prometheus-client.js";
 
 export function createActivityCountsRouter(prometheusUrl: string): Router {
@@ -23,14 +25,18 @@ export function createActivityCountsRouter(prometheusUrl: string): Router {
     }
 
     try {
-      const [counts, workflowCounts] = await Promise.all([
+      const [counts, workflowCounts, p95Latencies, workflowP95Latencies] = await Promise.all([
         queryActivityCounts(prometheusUrl, range),
         queryWorkflowCounts(prometheusUrl, range),
+        queryActivityP95Latencies(prometheusUrl, range),
+        queryWorkflowP95Latencies(prometheusUrl, range),
       ]);
       response.json({
         range,
         counts,
         workflowCounts,
+        p95Latencies,
+        workflowP95Latencies,
         timestamp: new Date().toISOString(),
       });
       return;

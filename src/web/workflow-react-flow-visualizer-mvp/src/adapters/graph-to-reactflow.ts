@@ -602,6 +602,7 @@ export function graphToReactFlow(graph: WorkflowGraph): { nodes: Node<WorkflowNo
         description: cwData.summary,
         kind: "childWorkflowGroup",
         id: groupId,
+        workflowRef,
       },
       position: { x: groupX, y: groupYOffset },
       style: { width: groupSize.width, height: groupSize.height },

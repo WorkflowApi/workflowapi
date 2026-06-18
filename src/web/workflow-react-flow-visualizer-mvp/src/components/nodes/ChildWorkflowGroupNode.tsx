@@ -1,10 +1,18 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeData } from "../../adapters/graph-to-reactflow";
+import { useMetrics } from "../../contexts/MetricsContext";
+import { RunCountLabel } from "./RunCountLabel";
 
 const HIDDEN_HANDLE_STYLE = { opacity: 0 };
 
 export function ChildWorkflowGroupNode({ data }: NodeProps) {
   const nodeData = data as WorkflowNodeData;
+  const { workflowCounts, workflowP95Latencies, isLoading, isUnavailable } = useMetrics();
+
+  const executionCount =
+    typeof nodeData.workflowRef === "string" ? workflowCounts[nodeData.workflowRef] : undefined;
+  const p95Seconds =
+    typeof nodeData.workflowRef === "string" ? workflowP95Latencies[nodeData.workflowRef] : undefined;
 
   return (
     <div className="h-full w-full rounded-xl border-2 border-dashed border-purple-400 bg-purple-50/40 overflow-visible">
@@ -24,6 +32,13 @@ export function ChildWorkflowGroupNode({ data }: NodeProps) {
         {nodeData.description ? (
           <p className="text-[8px] text-purple-700/70">{nodeData.description}</p>
         ) : null}
+        <RunCountLabel
+          count={executionCount}
+          p95Seconds={p95Seconds}
+          isLoading={isLoading}
+          isUnavailable={isUnavailable}
+          className="mt-1 text-[9px] font-medium text-purple-700/70"
+        />
       </div>
     </div>
   );
