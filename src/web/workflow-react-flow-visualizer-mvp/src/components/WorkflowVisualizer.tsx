@@ -18,8 +18,18 @@ import { ChildWorkflowGroupNode } from "./nodes/ChildWorkflowGroupNode";
 import { StepNode } from "./nodes/StepNode";
 import { SubflowNode } from "./nodes/SubflowNode";
 
+export interface SelectedWorkflowNode {
+  id: string;
+  kind: string;
+  label: string;
+  description?: string;
+  raw?: Record<string, unknown>;
+}
+
 interface WorkflowVisualizerProps {
   graph: WorkflowGraph;
+  onNodeSelect?: (node: SelectedWorkflowNode | null) => void;
+  selectedNodeId?: string | null;
 }
 
 const nodeTypes: NodeTypes = {
@@ -126,7 +136,7 @@ function resizeGroups(nodes: WNode[]): WNode[] {
   });
 }
 
-export function WorkflowVisualizer({ graph }: WorkflowVisualizerProps) {
+export function WorkflowVisualizer({ graph, onNodeSelect, selectedNodeId }: WorkflowVisualizerProps) {
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const result = graphToReactFlow(graph);
     return { nodes: result.nodes, edges: result.edges };
@@ -147,13 +157,43 @@ export function WorkflowVisualizer({ graph }: WorkflowVisualizerProps) {
     [onNodesChange, setNodes],
   );
 
+  const displayNodes = useMemo(
+    () =>
+      nodes.map((node) => ({
+        ...node,
+        selected: node.id === selectedNodeId,
+        zIndex: node.id === selectedNodeId ? 1000 : node.zIndex,
+      })),
+    [nodes, selectedNodeId],
+  );
+
+  const handleNodeClick = useCallback(
+    (_event: React.MouseEvent, node: Node<WorkflowNodeData>) => {
+      const data = node.data;
+      onNodeSelect?.({
+        id: node.id,
+        kind: typeof data.kind === "string" ? data.kind : "step",
+        label: typeof data.label === "string" ? data.label : node.id,
+        description: typeof data.description === "string" ? data.description : undefined,
+        raw: data,
+      });
+    },
+    [onNodeSelect],
+  );
+
+  const handlePaneClick = useCallback(() => {
+    onNodeSelect?.(null);
+  }, [onNodeSelect]);
+
   return (
     <ReactFlow
-      nodes={nodes}
+      nodes={displayNodes}
       edges={edges}
       nodeTypes={nodeTypes}
       onNodesChange={handleNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeClick={handleNodeClick}
+      onPaneClick={handlePaneClick}
       nodesDraggable
       fitView
     >

@@ -1,10 +1,10 @@
 import type { TimeRange } from "../services/metrics-client";
 
 const OPTIONS: Array<{ value: TimeRange; label: string }> = [
-  { value: "1h", label: "Letzte Stunde" },
-  { value: "1d", label: "Letzter Tag" },
-  { value: "7d", label: "Letzte Woche" },
-  { value: "30d", label: "Letzter Monat" },
+  { value: "1h", label: "Last hour" },
+  { value: "1d", label: "Last day" },
+  { value: "7d", label: "Last week" },
+  { value: "30d", label: "Last month" },
 ];
 
 interface TimeRangeSelectorProps {

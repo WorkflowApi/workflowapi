@@ -14,7 +14,7 @@ export function ExecutionCountBadge({
   if (isLoading) {
     return (
       <span
-        aria-label="Ausführungszahl wird geladen"
+        aria-label="Run count is loading"
         className="inline-flex min-w-8 items-center justify-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600 animate-pulse"
       >
         …
@@ -25,7 +25,7 @@ export function ExecutionCountBadge({
   if (isUnavailable || count === undefined) {
     return (
       <span
-        aria-label="Ausführungszahl nicht verfügbar"
+        aria-label="Run count unavailable"
         className="inline-flex min-w-8 items-center justify-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500"
       >
         –
@@ -35,8 +35,8 @@ export function ExecutionCountBadge({
 
   return (
     <span
-      title={count.toLocaleString("de-DE")}
-      aria-label={`Ausführungszahl: ${count.toLocaleString("de-DE")}`}
+      title={count.toLocaleString("en-US")}
+      aria-label={`Run count: ${count.toLocaleString("en-US")}`}
       className="inline-flex min-w-8 items-center justify-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
     >
       {formatCompactNumber(count)}
